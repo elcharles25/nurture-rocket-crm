@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       campaign_templates: {
         Row: {
+          attachments: Json | null
           created_at: string | null
           email_1_html: string
           email_1_subject: string
@@ -33,6 +34,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          attachments?: Json | null
           created_at?: string | null
           email_1_html: string
           email_1_subject: string
@@ -50,6 +52,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          attachments?: Json | null
           created_at?: string | null
           email_1_html?: string
           email_1_subject?: string
@@ -70,7 +73,6 @@ export type Database = {
       }
       campaigns: {
         Row: {
-          campaign_name: string
           contact_id: string | null
           created_at: string | null
           email_1_date: string | null
@@ -88,7 +90,6 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
-          campaign_name: string
           contact_id?: string | null
           created_at?: string | null
           email_1_date?: string | null
@@ -106,7 +107,6 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
-          campaign_name?: string
           contact_id?: string | null
           created_at?: string | null
           email_1_date?: string | null
@@ -197,6 +197,30 @@ export type Database = {
         }
         Relationships: []
       }
+      settings: {
+        Row: {
+          created_at: string | null
+          id: string
+          key: string
+          updated_at: string | null
+          value: Json
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          key: string
+          updated_at?: string | null
+          value: Json
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          key?: string
+          updated_at?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       webinar_distributions: {
         Row: {
           created_at: string | null
@@ -232,6 +256,44 @@ export type Database = {
           sent_at?: string | null
         }
         Relationships: []
+      }
+      webinar_recommendations: {
+        Row: {
+          created_at: string | null
+          distribution_id: string | null
+          gartner_role: string
+          id: string
+          relevance_score: number | null
+          webinar_description: string | null
+          webinar_title: string
+        }
+        Insert: {
+          created_at?: string | null
+          distribution_id?: string | null
+          gartner_role: string
+          id?: string
+          relevance_score?: number | null
+          webinar_description?: string | null
+          webinar_title: string
+        }
+        Update: {
+          created_at?: string | null
+          distribution_id?: string | null
+          gartner_role?: string
+          id?: string
+          relevance_score?: number | null
+          webinar_description?: string | null
+          webinar_title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webinar_recommendations_distribution_id_fkey"
+            columns: ["distribution_id"]
+            isOneToOne: false
+            referencedRelation: "webinar_distributions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
