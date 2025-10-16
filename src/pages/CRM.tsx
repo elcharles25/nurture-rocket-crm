@@ -344,9 +344,21 @@ const CRM = () => {
                   <TableCell>{contact.email}</TableCell>
                   <TableCell>{contact.gartner_role}</TableCell>
                   <TableCell>{contact.contact_type}</TableCell>
-                  <TableCell>{contact.contacted ? "Sí" : "No"}</TableCell>
-                  <TableCell>{contact.interested ? "Sí" : "No"}</TableCell>
-                  <TableCell>{contact.webinars_subscribed ? "Sí" : "No"}</TableCell>
+                  <TableCell className={contact.contacted ? "bg-green-500/20" : ""}>
+                    <span className={`px-2 py-1 rounded text-xs ${contact.contacted ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"}`}>
+                      {contact.contacted ? "Sí" : "No"}
+                    </span>
+                  </TableCell>
+                  <TableCell className={contact.interested ? "bg-green-500/20" : ""}>
+                    <span className={`px-2 py-1 rounded text-xs ${contact.interested ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"}`}>
+                      {contact.interested ? "Sí" : "No"}
+                    </span>
+                  </TableCell>
+                  <TableCell className={contact.webinars_subscribed ? "bg-green-500/20" : ""}>
+                    <span className={`px-2 py-1 rounded text-xs ${contact.webinars_subscribed ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"}`}>
+                      {contact.webinars_subscribed ? "Sí" : "No"}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={() => openEditDialog(contact)}>

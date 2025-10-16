@@ -14,7 +14,6 @@ interface Campaign {
   id: string;
   contact_id: string;
   template_id: string | null;
-  campaign_name: string;
   start_campaign: boolean;
   email_1_date: string | null;
   email_2_date: string | null;
@@ -33,6 +32,9 @@ interface Campaign {
     gartner_role: string;
     title: string;
   };
+  campaign_templates?: {
+    name: string;
+  };
 }
 
 export const CampaignList = () => {
@@ -45,7 +47,6 @@ export const CampaignList = () => {
   const [formData, setFormData] = useState({
     contact_id: "",
     template_id: "",
-    campaign_name: "",
     start_campaign: false,
     email_1_date: "",
     email_2_date: "",
@@ -63,11 +64,11 @@ export const CampaignList = () => {
   const fetchCampaigns = async () => {
     const { data, error } = await supabase
       .from("campaigns")
-      .select("*, contacts(first_name, last_name, email, organization, gartner_role, title)")
+      .select("*, contacts(first_name, last_name, email, organization, gartner_role, title), campaign_templates(name)")
       .order("created_at", { ascending: false });
 
     if (!error && data) {
-      setCampaigns(data as Campaign[]);
+      setCampaigns(data as any);
     }
   };
 
@@ -100,13 +101,13 @@ export const CampaignList = () => {
     const payload = {
       contact_id: formData.contact_id,
       template_id: formData.template_id || null,
-      campaign_name: formData.campaign_name,
       start_campaign: formData.start_campaign,
       email_1_date: dates[0],
       email_2_date: dates[1],
       email_3_date: dates[2],
       email_4_date: dates[3],
       email_5_date: dates[4],
+      status: formData.start_campaign ? 'active' : 'pending',
     };
 
     const { error } = await supabase.from("campaigns").insert([payload]);
@@ -125,7 +126,6 @@ export const CampaignList = () => {
     setFormData({
       contact_id: "",
       template_id: "",
-      campaign_name: "",
       start_campaign: false,
       email_1_date: "",
       email_2_date: "",
@@ -195,15 +195,6 @@ export const CampaignList = () => {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="campaign_name">Nombre Campaña *</Label>
-                <Input
-                  id="campaign_name"
-                  value={formData.campaign_name}
-                  onChange={(e) => setFormData({ ...formData, campaign_name: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
                 <Label htmlFor="email_1_date">Fecha Inicio (Email 1) *</Label>
                 <Input
                   id="email_1_date"
@@ -236,10 +227,10 @@ export const CampaignList = () => {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Nombre</TableHead>
+            <TableHead>Rol</TableHead>
+            <TableHead>Plantilla</TableHead>
             <TableHead>Contacto</TableHead>
             <TableHead>Email</TableHead>
-            <TableHead>Rol</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead>Emails Enviados</TableHead>
             <TableHead>Fecha Email 1</TableHead>
@@ -249,14 +240,14 @@ export const CampaignList = () => {
         <TableBody>
           {campaigns.map((campaign) => (
             <TableRow key={campaign.id}>
-              <TableCell>{campaign.campaign_name}</TableCell>
+              <TableCell>{campaign.contacts.gartner_role}</TableCell>
+              <TableCell>{campaign.campaign_templates?.name || "Sin plantilla"}</TableCell>
               <TableCell>
                 {campaign.contacts.first_name} {campaign.contacts.last_name}
               </TableCell>
               <TableCell>{campaign.contacts.email}</TableCell>
-              <TableCell>{campaign.contacts.gartner_role}</TableCell>
               <TableCell>
-                <span className={`px-2 py-1 rounded text-xs ${campaign.status === "completed" ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"}`}>
+                <span className={`px-2 py-1 rounded text-xs ${campaign.status === "completed" ? "bg-green-100 text-green-800" : campaign.status === "active" ? "bg-blue-100 text-blue-800" : "bg-yellow-100 text-yellow-800"}`}>
                   {campaign.status}
                 </span>
               </TableCell>

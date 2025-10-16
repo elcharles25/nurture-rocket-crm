@@ -2,12 +2,12 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Send, Trash2 } from "lucide-react";
+import { Upload, Send, Trash2, Settings } from "lucide-react";
+import { WebinarEmailEditor } from "@/components/webinars/WebinarEmailEditor";
 
 interface WebinarDistribution {
   id: string;
@@ -24,16 +24,9 @@ interface WebinarDistribution {
 const Webinars = () => {
   const [distributions, setDistributions] = useState<WebinarDistribution[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [showEmailEditor, setShowEmailEditor] = useState(false);
+  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const { toast } = useToast();
-
-  const [formData, setFormData] = useState({
-    month: new Date().toISOString().slice(0, 7),
-    email_subject: "Webinars disponibles este mes",
-    email_html: `<h2>Hola {{nombre}},</h2>
-<p>Aquí están los webinars disponibles para este mes en tu organización {{organizacion}}.</p>
-<p>Adjuntamos el PDF con toda la información.</p>
-<p>Saludos,<br>El equipo</p>`,
-  });
 
   useEffect(() => {
     fetchDistributions();
@@ -55,7 +48,14 @@ const Webinars = () => {
 
     setUploading(true);
 
-    const fileName = `${formData.month}-${Date.now()}.pdf`;
+    // Get email template
+    const { data: templateData } = await supabase.from("settings").select("*").eq("key", "webinar_email_template").maybeSingle();
+    const template = (templateData?.value as any) || {
+      subject: "Webinars disponibles este mes",
+      html: "<h2>Hola {{nombre}},</h2><p>Aquí están los webinars disponibles para este mes.</p>",
+    };
+
+    const fileName = `${month}-${Date.now()}.pdf`;
     const { data, error } = await supabase.storage.from("webinars").upload(fileName, file);
 
     if (error) {
@@ -68,11 +68,11 @@ const Webinars = () => {
 
     const { error: insertError } = await supabase.from("webinar_distributions").insert([
       {
-        month: formData.month,
+        month: month,
         file_url: urlData.publicUrl,
         file_name: file.name,
-        email_subject: formData.email_subject,
-        email_html: formData.email_html,
+        email_subject: template.subject,
+        email_html: template.html,
       },
     ]);
 
@@ -112,49 +112,33 @@ const Webinars = () => {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold text-foreground">Gestión de Webinars</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-foreground">Gestión de Webinars</h1>
+          <Button onClick={() => setShowEmailEditor(true)}>
+            <Settings className="h-4 w-4 mr-2" />
+            Configurar Email
+          </Button>
+        </div>
 
         <Card>
           <CardHeader>
             <CardTitle>Cargar Nuevo Webinar</CardTitle>
-            <CardDescription>Sube el PDF de webinars del mes y configura el email</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="month">Mes</Label>
-              <Input id="month" type="month" value={formData.month} onChange={(e) => setFormData({ ...formData, month: e.target.value })} />
-            </div>
-            <div>
-              <Label htmlFor="email_subject">Asunto del Email</Label>
-              <Input
-                id="email_subject"
-                value={formData.email_subject}
-                onChange={(e) => setFormData({ ...formData, email_subject: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="email_html">Plantilla HTML</Label>
-              <Textarea
-                id="email_html"
-                value={formData.email_html}
-                onChange={(e) => setFormData({ ...formData, email_html: e.target.value })}
-                rows={8}
-                className="font-mono text-sm"
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                Variables disponibles: {"{{nombre}}"}, {"{{apellido}}"}, {"{{organizacion}}"}
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="file">Archivo PDF</Label>
-              <Input id="file" type="file" accept="application/pdf" onChange={handleFileUpload} disabled={uploading} />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Input id="month" type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+              </div>
+              <div>
+                <Input id="file" type="file" accept="application/pdf" onChange={handleFileUpload} disabled={uploading} />
+              </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Distribuciones Programadas</CardTitle>
+            <CardTitle>Distribuciones de Webinars</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -162,7 +146,6 @@ const Webinars = () => {
                 <TableRow>
                   <TableHead>Mes</TableHead>
                   <TableHead>Archivo</TableHead>
-                  <TableHead>Asunto</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Fecha Envío</TableHead>
                   <TableHead>Acciones</TableHead>
@@ -177,7 +160,6 @@ const Webinars = () => {
                         {dist.file_name}
                       </a>
                     </TableCell>
-                    <TableCell>{dist.email_subject}</TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded text-xs ${dist.sent ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}>
                         {dist.sent ? "Enviado" : "Pendiente"}
@@ -202,6 +184,15 @@ const Webinars = () => {
             </Table>
           </CardContent>
         </Card>
+
+        <Dialog open={showEmailEditor} onOpenChange={setShowEmailEditor}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Configurar Plantilla de Email</DialogTitle>
+            </DialogHeader>
+            <WebinarEmailEditor />
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
