@@ -29,9 +29,9 @@ All colors MUST be HSL.
     --ring: 210 100% 50%;
     --radius: 0.5rem;
     --sidebar-background: 210 100% 98%;
-    --sidebar-foreground: 215 16.3% 46.9%;
+    --sidebar-foreground: 215 25% 27%;
     --sidebar-primary: 210 100% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-primary-foreground: 0 0% 71%;
     --sidebar-accent: 210 100% 95%;
     --sidebar-accent-foreground: 210 100% 40%;
     --sidebar-border: 214 31.8% 91.4%;
@@ -59,7 +59,7 @@ All colors MUST be HSL.
     --input: 215 25% 27%;
     --ring: 210 100% 60%;
     --sidebar-background: 215 30% 13%;
-    --sidebar-foreground: 215 20.2% 65.1%;
+    --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 210 100% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 215 25% 27%;
