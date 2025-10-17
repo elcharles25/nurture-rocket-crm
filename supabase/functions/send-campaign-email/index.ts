@@ -47,7 +47,7 @@ serve(async (req) => {
       .eq('key', 'email_signature')
       .maybeSingle();
 
-    const signature = signatureData?.value || '';
+    const signature = signatureData?.value?.signature || '';
 
     // Get the specific email content
     const subjectKey = `email_${emailNumber}_subject`;

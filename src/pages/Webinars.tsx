@@ -48,47 +48,106 @@ const Webinars = () => {
 
     setUploading(true);
 
-    // Get email template
-    const { data: templateData } = await supabase.from("settings").select("*").eq("key", "webinar_email_template").maybeSingle();
-    const template = (templateData?.value as any) || {
-      subject: "Webinars disponibles este mes",
-      html: "<h2>Hola {{nombre}},</h2><p>Aquí están los webinars disponibles para este mes.</p>",
-    };
+    try {
+      // Get email template
+      const { data: templateData } = await supabase.from("settings").select("*").eq("key", "webinar_email_template").maybeSingle();
+      const template = (templateData?.value as any) || {
+        subject: "Webinars disponibles este mes",
+        html: "<h2>Hola {{nombre}},</h2><p>Aquí están los webinars disponibles para este mes.</p>",
+      };
 
-    const fileName = `${month}-${Date.now()}.pdf`;
-    const { data, error } = await supabase.storage.from("webinars").upload(fileName, file);
+      const fileName = `${month}-${Date.now()}.pdf`;
+      const { data, error } = await supabase.storage.from("webinars").upload(fileName, file);
 
-    if (error) {
-      toast({ title: "Error", description: "No se pudo subir el archivo", variant: "destructive" });
-      setUploading(false);
-      return;
-    }
+      if (error) {
+        toast({ title: "Error", description: "No se pudo subir el archivo", variant: "destructive" });
+        setUploading(false);
+        return;
+      }
 
-    const { data: urlData } = supabase.storage.from("webinars").getPublicUrl(fileName);
+      const { data: urlData } = supabase.storage.from("webinars").getPublicUrl(fileName);
 
-    const { error: insertError } = await supabase.from("webinar_distributions").insert([
-      {
-        month: month,
-        file_url: urlData.publicUrl,
-        file_name: file.name,
-        email_subject: template.subject,
-        email_html: template.html,
-      },
-    ]);
+      const { data: insertData, error: insertError } = await supabase
+        .from("webinar_distributions")
+        .insert([
+          {
+            month: month,
+            file_url: urlData.publicUrl,
+            file_name: file.name,
+            email_subject: template.subject,
+            email_html: template.html,
+          },
+        ])
+        .select()
+        .single();
 
-    if (insertError) {
-      toast({ title: "Error", description: "No se pudo guardar la distribución", variant: "destructive" });
-    } else {
-      toast({ title: "Éxito", description: "Webinar cargado correctamente" });
+      if (insertError) {
+        toast({ title: "Error", description: "No se pudo guardar la distribución", variant: "destructive" });
+        setUploading(false);
+        return;
+      }
+
+      toast({ title: "Éxito", description: "Webinar cargado, analizando con AI..." });
+
+      // Analyze PDF with AI
+      const { data: analysisData, error: analysisError } = await supabase.functions.invoke("analyze-webinar-pdf", {
+        body: {
+          distributionId: insertData.id,
+          fileUrl: urlData.publicUrl,
+        },
+      });
+
+      if (analysisError) {
+        console.error("Error analyzing PDF:", analysisError);
+        toast({ title: "Advertencia", description: "El archivo se cargó pero no se pudo analizar con AI", variant: "destructive" });
+      } else {
+        toast({ title: "Éxito", description: `Webinar analizado. ${analysisData.recommendations?.length || 0} recomendaciones generadas.` });
+      }
+
       fetchDistributions();
+    } catch (error) {
+      console.error("Error uploading webinar:", error);
+      toast({ title: "Error", description: "Ocurrió un error al cargar el webinar", variant: "destructive" });
+    } finally {
+      setUploading(false);
     }
-
-    setUploading(false);
   };
 
   const handleSendWebinars = async (distributionId: string) => {
-    toast({ title: "Enviando", description: "Los webinars se enviarán pronto..." });
-    // Aquí se llamaría a la edge function para enviar emails
+    if (!confirm("¿Enviar webinars a todos los contactos suscritos?")) return;
+
+    toast({ title: "Enviando", description: "Enviando webinars a los contactos..." });
+
+    try {
+      const { data, error } = await supabase.functions.invoke("send-webinar-emails", {
+        body: { distributionId },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.success) {
+        toast({ 
+          title: "Éxito", 
+          description: `Se enviaron ${data.emailsSent} emails correctamente`,
+        });
+        fetchDistributions();
+      } else {
+        toast({ 
+          title: "Advertencia", 
+          description: data?.message || "No hay contactos suscritos a webinars",
+          variant: "destructive" 
+        });
+      }
+    } catch (error) {
+      console.error("Error sending webinars:", error);
+      toast({ 
+        title: "Error", 
+        description: "No se pudieron enviar los webinars",
+        variant: "destructive" 
+      });
+    }
   };
 
   const handleDelete = async (id: string, fileUrl: string) => {

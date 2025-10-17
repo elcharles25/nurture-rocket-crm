@@ -58,7 +58,7 @@ serve(async (req) => {
       .eq('key', 'email_signature')
       .maybeSingle();
 
-    const signature = signatureData?.value || '';
+    const signature = signatureData?.value?.signature || '';
 
     let emailsSent = 0;
 

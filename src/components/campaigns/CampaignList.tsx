@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Send } from "lucide-react";
 
 interface Campaign {
   id: string;
@@ -135,6 +135,35 @@ export const CampaignList = () => {
     });
   };
 
+  const handleSendEmail = async (campaignId: string, emailNumber: number) => {
+    if (!confirm(`¿Enviar email ${emailNumber} de esta campaña?`)) return;
+
+    toast({ title: "Enviando", description: "Enviando email..." });
+
+    try {
+      const { data, error } = await supabase.functions.invoke("send-campaign-email", {
+        body: { 
+          campaignId,
+          emailNumber 
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.success) {
+        toast({ title: "Éxito", description: "Email enviado correctamente" });
+        fetchCampaigns();
+      } else {
+        toast({ title: "Error", description: "No se pudo enviar el email", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error("Error sending email:", error);
+      toast({ title: "Error", description: "No se pudo enviar el email", variant: "destructive" });
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("¿Eliminar esta campaña?")) return;
 
@@ -254,9 +283,45 @@ export const CampaignList = () => {
               <TableCell>{campaign.emails_sent} / 5</TableCell>
               <TableCell>{campaign.email_1_date ? new Date(campaign.email_1_date).toLocaleDateString() : "-"}</TableCell>
               <TableCell>
-                <Button size="sm" variant="destructive" onClick={() => handleDelete(campaign.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-2">
+                  {campaign.start_campaign && (
+                    <>
+                      {!campaign.email_1_date && (
+                        <Button size="sm" variant="secondary" onClick={() => handleSendEmail(campaign.id, 1)}>
+                          <Send className="h-4 w-4 mr-1" />
+                          Email 1
+                        </Button>
+                      )}
+                      {campaign.email_1_date && !campaign.email_2_date && (
+                        <Button size="sm" variant="secondary" onClick={() => handleSendEmail(campaign.id, 2)}>
+                          <Send className="h-4 w-4 mr-1" />
+                          Email 2
+                        </Button>
+                      )}
+                      {campaign.email_2_date && !campaign.email_3_date && (
+                        <Button size="sm" variant="secondary" onClick={() => handleSendEmail(campaign.id, 3)}>
+                          <Send className="h-4 w-4 mr-1" />
+                          Email 3
+                        </Button>
+                      )}
+                      {campaign.email_3_date && !campaign.email_4_date && (
+                        <Button size="sm" variant="secondary" onClick={() => handleSendEmail(campaign.id, 4)}>
+                          <Send className="h-4 w-4 mr-1" />
+                          Email 4
+                        </Button>
+                      )}
+                      {campaign.email_4_date && !campaign.email_5_date && (
+                        <Button size="sm" variant="secondary" onClick={() => handleSendEmail(campaign.id, 5)}>
+                          <Send className="h-4 w-4 mr-1" />
+                          Email 5
+                        </Button>
+                      )}
+                    </>
+                  )}
+                  <Button size="sm" variant="destructive" onClick={() => handleDelete(campaign.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))}
