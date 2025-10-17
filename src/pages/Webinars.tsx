@@ -268,30 +268,30 @@ const Webinars = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Mes</TableHead>
-                  <TableHead>Archivo</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Fecha Envío</TableHead>
-                  <TableHead>Acciones</TableHead>
+                  <TableHead className="text-center">Mes</TableHead>
+                  <TableHead className="text-center">Archivo</TableHead>
+                  <TableHead className="text-center">Estado</TableHead>
+                  <TableHead className="text-center">Fecha Envío</TableHead>
+                  <TableHead className="text-center">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {distributions.map((dist) => (
-                  <TableRow key={dist.id}>
-                    <TableCell>{dist.month}</TableCell>
-                    <TableCell>
+                  <TableRow key={dist.id} className="text-sm leading-tight text-center align-middle">
+                    <TableCell className="p-1">{dist.month}</TableCell>
+                    <TableCell className="p-1">
                       <a href={dist.file_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                         {dist.file_name}
                       </a>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="p-1">
                       <span className={`px-2 py-1 rounded text-xs ${dist.sent ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}>
                         {dist.sent ? "Enviado" : "Pendiente"}
                       </span>
                     </TableCell>
-                    <TableCell>{dist.sent_at ? new Date(dist.sent_at).toLocaleDateString() : "-"}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
+                    <TableCell className="p-1">{dist.sent_at ? new Date(dist.sent_at).toLocaleDateString() : "-"}</TableCell>
+                    <TableCell className="p-1">
+                      <div className="flex justify-center gap-3">
                         {!dist.sent && (
                           <>
                             <Button
@@ -301,15 +301,15 @@ const Webinars = () => {
                               disabled={creatingDrafts || isCreatingDrafts}
                               title="Crear borradores en Outlook"
                             >
-                              <FileText className="h-4 w-4" />
+                              <FileText className="h-3 w-3" />
                             </Button>
                             <Button size="sm" onClick={() => handleSendWebinars(dist.id)}>
-                              <Send className="h-4 w-4" />
+                              <Send className="h-3 w-3" />
                             </Button>
                           </>
                         )}
                         <Button size="sm" variant="destructive" onClick={() => handleDelete(dist.id, dist.file_url)}>
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     </TableCell>
