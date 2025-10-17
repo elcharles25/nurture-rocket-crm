@@ -127,9 +127,8 @@ const Webinars = () => {
     try {
       // Obtener todos los contactos suscritos a webinars
       const { data: contacts, error: contactsError } = await supabase
-        .from("contacts")
-        .select("id, email, first_name")
-        .eq("subscribed_webinars", true);
+        .from("webinars_subscribed")
+        .select("id, email, first_name");
 
       if (contactsError || !contacts || contacts.length === 0) {
         toast({
