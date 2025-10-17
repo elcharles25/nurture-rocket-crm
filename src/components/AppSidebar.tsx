@@ -38,7 +38,7 @@ export function AppSidebar() {
                       end
                       className={({ isActive }) =>
                         isActive
-                          ? "bg-primary text-primary-foreground font-medium"
+                          ? "bg-primary text-sidebar-foreground font-medium"
                           : "text-foreground hover:bg-muted/50 hover:text-foreground"
                       }
                     >
