@@ -323,49 +323,47 @@ const CRM = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Organización</TableHead>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Rol</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Contactado</TableHead>
-                <TableHead>Interesado</TableHead>
-                <TableHead>Webinars</TableHead>
-                <TableHead>Acciones</TableHead>
+                <TableHead className="text-center">Organización</TableHead>
+                <TableHead className="text-center">Nombre</TableHead>
+                <TableHead className="text-center">Email</TableHead>
+                <TableHead className="text-center">Rol</TableHead>
+                <TableHead className="text-center">Contactado</TableHead>
+                <TableHead className="text-center">Interesado</TableHead>
+                <TableHead className="text-center">Webinars</TableHead>
+                <TableHead className="text-center">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {contacts.map((contact) => (
-                <TableRow key={contact.id}>
-                  <TableCell>{contact.organization}</TableCell>
-                  <TableCell>
+                <TableRow key={contact.id} className="text-sm leading-tight text-center align-middle">
+                  <TableCell className="p-1">{contact.organization}</TableCell>
+                  <TableCell className="p-1">
                     {contact.first_name} {contact.last_name}
                   </TableCell>
-                  <TableCell>{contact.email}</TableCell>
-                  <TableCell>{contact.gartner_role}</TableCell>
-                  <TableCell>{contact.contact_type}</TableCell>
-                  <TableCell className={contact.contacted ? "bg-green-500/20" : ""}>
-                    <span className={`px-2 py-1 rounded text-xs ${contact.contacted ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"}`}>
+                  <TableCell className="p-1">{contact.email}</TableCell>
+                  <TableCell className="p-1">{contact.gartner_role}</TableCell>
+                  <TableCell>
+                    <span className={`leading-tight rounded text-xs ${contact.contacted ? "px-10 py-2.5 bg-green-500/20" : "px-9 py-2.5 bg-red-500/20"}`}>
                       {contact.contacted ? "Sí" : "No"}
                     </span>
                   </TableCell>
-                  <TableCell className={contact.interested ? "bg-green-500/20" : ""}>
-                    <span className={`px-2 py-1 rounded text-xs ${contact.interested ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"}`}>
+                  <TableCell>
+                    <span className={`px-10 py-2.5 leading-tight rounded text-xs ${contact.interested ? "px-10 py-2.5 bg-green-500/20" : "px-9 py-2.5 bg-red-500/20"}`}>
                       {contact.interested ? "Sí" : "No"}
                     </span>
                   </TableCell>
-                  <TableCell className={contact.webinars_subscribed ? "bg-green-500/20" : ""}>
-                    <span className={`px-2 py-1 rounded text-xs ${contact.webinars_subscribed ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"}`}>
+                  <TableCell>
+                    <span className={`px-10 py-2.5 leading-tight rounded text-xs ${contact.webinars_subscribed ? "bg-green-500/20" : "px-9 py-2.5 bg-muted text-muted-foreground"}`}>
                       {contact.webinars_subscribed ? "Sí" : "No"}
                     </span>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => openEditDialog(contact)}>
-                        <Pencil className="h-4 w-4" />
+                  <TableCell className="p-1">
+                    <div className="flex justify-center gap-3">
+                      <Button size="sm" variant="outline" className="h-8 px-2 py-0" onClick={() => openEditDialog(contact)}>
+                        <Pencil className="h-3 w-3" />
                       </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDelete(contact.id)}>
-                        <Trash2 className="h-4 w-4" />
+                      <Button size="sm" variant="destructive" className="h-8 px-2 py-0" onClick={() => handleDelete(contact.id)}>
+                        <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
                   </TableCell>
