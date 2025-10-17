@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Send, Trash2, Settings } from "lucide-react";
+import { Upload, Send, Trash2, Settings, FileText } from "lucide-react";
 import { WebinarEmailEditor } from "@/components/webinars/WebinarEmailEditor";
+import { useOutlookDraftBatch } from "@/hooks/useOutlookDraft";
 
 interface WebinarDistribution {
   id: string;
@@ -21,12 +22,19 @@ interface WebinarDistribution {
   created_at: string;
 }
 
+interface Contact {
+  email: string;
+  nombre?: string;
+}
+
 const Webinars = () => {
   const [distributions, setDistributions] = useState<WebinarDistribution[]>([]);
   const [uploading, setUploading] = useState(false);
   const [showEmailEditor, setShowEmailEditor] = useState(false);
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [creatingDrafts, setCreatingDrafts] = useState(false);
   const { toast } = useToast();
+  const { mutate: createDraftsBatch, isPending: isCreatingDrafts } = useOutlookDraftBatch();
 
   useEffect(() => {
     fetchDistributions();
@@ -113,6 +121,63 @@ const Webinars = () => {
     }
   };
 
+  const handleCreateDrafts = async (distributionId: string) => {
+    setCreatingDrafts(true);
+
+    try {
+      // Obtener todos los contactos suscritos a webinars
+      const { data: contacts, error: contactsError } = await supabase
+        .from("contacts")
+        .select("id, email, first_name")
+        .eq("subscribed_webinars", true);
+
+      if (contactsError || !contacts || contacts.length === 0) {
+        toast({
+          title: "Advertencia",
+          description: "No hay contactos suscritos a webinars",
+          variant: "destructive",
+        });
+        setCreatingDrafts(false);
+        return;
+      }
+
+      // Obtener los detalles de la distribución
+      const distribution = distributions.find(d => d.id === distributionId);
+      if (!distribution) {
+        toast({
+          title: "Error",
+          description: "No se encontró la distribución",
+          variant: "destructive",
+        });
+        setCreatingDrafts(false);
+        return;
+      }
+
+      // Preparar emails para crear borradores
+      const emailsToCreate = contacts.map(contact => ({
+        to: contact.email,
+        subject: distribution.email_subject,
+        body: distribution.email_html.replace("{{nombre}}", contact.first_name || ""),
+      }));
+
+      // Crear borradores en lote
+      createDraftsBatch(
+        { emails: emailsToCreate },
+        {
+          onSettled: () => setCreatingDrafts(false),
+        }
+      );
+    } catch (error) {
+      console.error("Error creating drafts:", error);
+      toast({
+        title: "Error",
+        description: "Ocurrió un error al crear los borradores",
+        variant: "destructive",
+      });
+      setCreatingDrafts(false);
+    }
+  };
+
   const handleSendWebinars = async (distributionId: string) => {
     if (!confirm("¿Enviar webinars a todos los contactos suscritos?")) return;
 
@@ -128,24 +193,24 @@ const Webinars = () => {
       }
 
       if (data?.success) {
-        toast({ 
-          title: "Éxito", 
+        toast({
+          title: "Éxito",
           description: `Se enviaron ${data.emailsSent} emails correctamente`,
         });
         fetchDistributions();
       } else {
-        toast({ 
-          title: "Advertencia", 
+        toast({
+          title: "Advertencia",
           description: data?.message || "No hay contactos suscritos a webinars",
-          variant: "destructive" 
+          variant: "destructive",
         });
       }
     } catch (error) {
       console.error("Error sending webinars:", error);
-      toast({ 
-        title: "Error", 
+      toast({
+        title: "Error",
         description: "No se pudieron enviar los webinars",
-        variant: "destructive" 
+        variant: "destructive",
       });
     }
   };
@@ -228,9 +293,20 @@ const Webinars = () => {
                     <TableCell>
                       <div className="flex gap-2">
                         {!dist.sent && (
-                          <Button size="sm" onClick={() => handleSendWebinars(dist.id)}>
-                            <Send className="h-4 w-4" />
-                          </Button>
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleCreateDrafts(dist.id)}
+                              disabled={creatingDrafts || isCreatingDrafts}
+                              title="Crear borradores en Outlook"
+                            >
+                              <FileText className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" onClick={() => handleSendWebinars(dist.id)}>
+                              <Send className="h-4 w-4" />
+                            </Button>
+                          </>
                         )}
                         <Button size="sm" variant="destructive" onClick={() => handleDelete(dist.id, dist.file_url)}>
                           <Trash2 className="h-4 w-4" />
