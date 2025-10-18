@@ -22,22 +22,20 @@ interface WebinarDistribution {
   created_at: string;
 }
 
-interface Contact {
-  email: string;
-  nombre?: string;
-}
-
 const Webinars = () => {
   const [distributions, setDistributions] = useState<WebinarDistribution[]>([]);
   const [uploading, setUploading] = useState(false);
   const [showEmailEditor, setShowEmailEditor] = useState(false);
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [creatingDrafts, setCreatingDrafts] = useState(false);
+  const [availablePdfs, setAvailablePdfs] = useState<string[]>([]);
+  const [selectedPdf, setSelectedPdf] = useState("");
   const { toast } = useToast();
   const { mutate: createDraftsBatch, isPending: isCreatingDrafts } = useOutlookDraftBatch();
 
   useEffect(() => {
     fetchDistributions();
+    fetchAvailablePdfs();
   }, []);
 
   const fetchDistributions = async () => {
@@ -45,43 +43,51 @@ const Webinars = () => {
     setDistributions(data || []);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const fetchAvailablePdfs = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/webinars/list-pdfs');
+      if (!response.ok) throw new Error('Error obteniendo PDFs');
+      const data = await response.json();
+      setAvailablePdfs(data.pdfs || []);
+    } catch (error) {
+      console.error('Error fetching PDFs:', error);
+      toast({ 
+        title: "Advertencia", 
+        description: "No se pudo obtener la lista de PDFs disponibles",
+        variant: "destructive" 
+      });
+    }
+  };
 
-    if (file.type !== "application/pdf") {
-      toast({ title: "Error", description: "Solo se permiten archivos PDF", variant: "destructive" });
+  const handleSaveDistribution = async () => {
+    if (!selectedPdf) {
+      toast({ 
+        title: "Error", 
+        description: "Por favor selecciona un archivo PDF",
+        variant: "destructive" 
+      });
       return;
     }
 
     setUploading(true);
 
     try {
-      // Get email template
       const { data: templateData } = await supabase.from("settings").select("*").eq("key", "webinar_email_template").maybeSingle();
       const template = (templateData?.value as any) || {
         subject: "Webinars disponibles este mes",
         html: "<h2>Hola {{nombre}},</h2><p>Aquí están los webinars disponibles para este mes.</p>",
       };
 
-      const fileName = `${month}-${Date.now()}.pdf`;
-      const { data, error } = await supabase.storage.from("webinars").upload(fileName, file);
-
-      if (error) {
-        toast({ title: "Error", description: "No se pudo subir el archivo", variant: "destructive" });
-        setUploading(false);
-        return;
-      }
-
-      const { data: urlData } = supabase.storage.from("webinars").getPublicUrl(fileName);
+      const fileName = selectedPdf.split('\\').pop() || selectedPdf;
+      const pdfPath = `Webinars/${selectedPdf}`;
 
       const { data: insertData, error: insertError } = await supabase
         .from("webinar_distributions")
         .insert([
           {
             month: month,
-            file_url: urlData.publicUrl,
-            file_name: file.name,
+            file_url: pdfPath,
+            file_name: fileName,
             email_subject: template.subject,
             email_html: template.html,
           },
@@ -90,32 +96,16 @@ const Webinars = () => {
         .single();
 
       if (insertError) {
-        toast({ title: "Error", description: "No se pudo guardar la distribución", variant: "destructive" });
+        toast({ title: "Error", description: `No se pudo guardar: ${insertError.message}`, variant: "destructive" });
         setUploading(false);
         return;
       }
 
-      toast({ title: "Éxito", description: "Webinar cargado, analizando con AI..." });
-
-      // Analyze PDF with AI
-      const { data: analysisData, error: analysisError } = await supabase.functions.invoke("analyze-webinar-pdf", {
-        body: {
-          distributionId: insertData.id,
-          fileUrl: urlData.publicUrl,
-        },
-      });
-
-      if (analysisError) {
-        console.error("Error analyzing PDF:", analysisError);
-        toast({ title: "Advertencia", description: "El archivo se cargó pero no se pudo analizar con AI", variant: "destructive" });
-      } else {
-        toast({ title: "Éxito", description: `Webinar analizado. ${analysisData.recommendations?.length || 0} recomendaciones generadas.` });
-      }
-
+      toast({ title: "Éxito", description: `Distribución guardada: ${fileName}` });
+      setSelectedPdf("");
       fetchDistributions();
     } catch (error) {
-      console.error("Error uploading webinar:", error);
-      toast({ title: "Error", description: "Ocurrió un error al cargar el webinar", variant: "destructive" });
+      toast({ title: "Error", description: `Error: ${error instanceof Error ? error.message : 'Desconocido'}`, variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -125,7 +115,30 @@ const Webinars = () => {
     setCreatingDrafts(true);
 
     try {
-      // Obtener todos los contactos suscritos a webinars
+      toast({ title: "Preparando", description: "Obteniendo contactos y configuración..." });
+
+      let signature = "";
+      try {
+        const { data } = await supabase
+          .from("settings")
+          .select("value")
+          .eq("key", "email_signature")
+          .single();
+        
+        if (data && data.value) {
+          const value = data.value as any;
+          let sig = value?.signature || "";
+          sig = sig.trim();
+          if (sig.startsWith('"') && sig.endsWith('"')) {
+            sig = sig.slice(1, -1);
+          }
+          sig = sig.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\\//g, '/');
+          signature = sig;
+        }
+      } catch (e) {
+        console.log('No signature configured');
+      }
+
       const { data: contacts, error: contactsError } = await supabase
         .from("contacts")
         .select("id, email, first_name")
@@ -141,7 +154,6 @@ const Webinars = () => {
         return;
       }
 
-      // Obtener los detalles de la distribución
       const distribution = distributions.find(d => d.id === distributionId);
       if (!distribution) {
         toast({
@@ -153,14 +165,42 @@ const Webinars = () => {
         return;
       }
 
-      // Preparar emails para crear borradores
-      const emailsToCreate = contacts.map(contact => ({
-        to: contact.email,
-        subject: distribution.email_subject,
-        body: distribution.email_html.replace("{{nombre}}", contact.first_name || ""),
-      }));
+      if (!distribution.file_url) {
+        toast({
+          title: "Error",
+          description: "No hay archivo PDF asociado a esta distribución",
+          variant: "destructive",
+        });
+        setCreatingDrafts(false);
+        return;
+      }
 
-      // Crear borradores en lote
+      const [ano, mes] = distribution.month.split('-');
+      const mesesEnEspanol = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+      const mesNombre = mesesEnEspanol[parseInt(mes) - 1];
+
+      const emailsToCreate = contacts.map(contact => {
+        let body = distribution.email_html
+          .replace(/{{Nombre}}/g, contact.first_name || "")
+          .replace(/{{nombre}}/g, contact.first_name || "");
+
+        if (signature) {
+          body = body + signature;
+        }
+
+        let subject = distribution.email_subject
+          .replace(/{{mes}}/g, mesNombre)
+          .replace(/{{anio}}/g, ano);
+
+        return {
+          to: contact.email,
+          subject: subject,
+          body: body,
+          pdfPath: distribution.file_url,
+          fileName: distribution.file_name
+        };
+      });
+
       createDraftsBatch(
         { emails: emailsToCreate },
         {
@@ -171,7 +211,7 @@ const Webinars = () => {
       console.error("Error creating drafts:", error);
       toast({
         title: "Error",
-        description: "Ocurrió un error al crear los borradores",
+        description: `Error: ${error instanceof Error ? error.message : 'Desconocido'}`,
         variant: "destructive",
       });
       setCreatingDrafts(false);
@@ -193,24 +233,24 @@ const Webinars = () => {
       }
 
       if (data?.success) {
-        toast({
-          title: "Éxito",
+        toast({ 
+          title: "Éxito", 
           description: `Se enviaron ${data.emailsSent} emails correctamente`,
         });
         fetchDistributions();
       } else {
-        toast({
-          title: "Advertencia",
+        toast({ 
+          title: "Advertencia", 
           description: data?.message || "No hay contactos suscritos a webinars",
-          variant: "destructive",
+          variant: "destructive" 
         });
       }
     } catch (error) {
       console.error("Error sending webinars:", error);
-      toast({
-        title: "Error",
+      toast({ 
+        title: "Error", 
         description: "No se pudieron enviar los webinars",
-        variant: "destructive",
+        variant: "destructive" 
       });
     }
   };
@@ -251,12 +291,33 @@ const Webinars = () => {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
+                <label className="text-sm font-medium">Mes</label>
                 <Input id="month" type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
               </div>
               <div>
-                <Input id="file" type="file" accept="application/pdf" onChange={handleFileUpload} disabled={uploading} />
+                <label className="text-sm font-medium">Seleccionar PDF</label>
+                <select
+                  value={selectedPdf}
+                  onChange={(e) => setSelectedPdf(e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                >
+                  <option value="">-- Selecciona un PDF --</option>
+                  {availablePdfs.map((pdf) => (
+                    <option key={pdf} value={pdf}>
+                      {pdf.split('\\').pop()}
+                    </option>
+                  ))}
+                </select>
+                {availablePdfs.length === 0 && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    No hay PDFs disponibles. Coloca archivos en la carpeta Webinars del proyecto.
+                  </p>
+                )}
               </div>
             </div>
+            <Button onClick={handleSaveDistribution} disabled={uploading || !selectedPdf} className="w-full">
+              Guardar Distribución
+            </Button>
           </CardContent>
         </Card>
 
@@ -268,30 +329,30 @@ const Webinars = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-center">Mes</TableHead>
-                  <TableHead className="text-center">Archivo</TableHead>
-                  <TableHead className="text-center">Estado</TableHead>
-                  <TableHead className="text-center">Fecha Envío</TableHead>
-                  <TableHead className="text-center">Acciones</TableHead>
+                  <TableHead>Mes</TableHead>
+                  <TableHead>Archivo</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Fecha Envío</TableHead>
+                  <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {distributions.map((dist) => (
-                  <TableRow key={dist.id} className="text-sm leading-tight text-center align-middle">
-                    <TableCell className="p-1">{dist.month}</TableCell>
-                    <TableCell className="p-1">
+                  <TableRow key={dist.id}>
+                    <TableCell>{dist.month}</TableCell>
+                    <TableCell>
                       <a href={dist.file_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                         {dist.file_name}
                       </a>
                     </TableCell>
-                    <TableCell className="p-1">
+                    <TableCell>
                       <span className={`px-2 py-1 rounded text-xs ${dist.sent ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}>
                         {dist.sent ? "Enviado" : "Pendiente"}
                       </span>
                     </TableCell>
-                    <TableCell className="p-1">{dist.sent_at ? new Date(dist.sent_at).toLocaleDateString() : "-"}</TableCell>
-                    <TableCell className="p-1">
-                      <div className="flex justify-center gap-3">
+                    <TableCell>{dist.sent_at ? new Date(dist.sent_at).toLocaleDateString() : "-"}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
                         {!dist.sent && (
                           <>
                             <Button
@@ -301,15 +362,12 @@ const Webinars = () => {
                               disabled={creatingDrafts || isCreatingDrafts}
                               title="Crear borradores en Outlook"
                             >
-                              <FileText className="h-3 w-3" />
-                            </Button>
-                            <Button size="sm" onClick={() => handleSendWebinars(dist.id)}>
-                              <Send className="h-3 w-3" />
+                              <FileText className="h-4 w-4" />
                             </Button>
                           </>
                         )}
                         <Button size="sm" variant="destructive" onClick={() => handleDelete(dist.id, dist.file_url)}>
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
