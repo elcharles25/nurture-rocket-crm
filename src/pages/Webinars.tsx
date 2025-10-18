@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast";
 import { Settings, FileText, Trash2 } from "lucide-react";
 import { WebinarEmailEditor } from "@/components/webinars/WebinarEmailEditor";
-import { useOutlookDraftBatch } from "@/hooks/useOutlookDraft";
+import { useOutlookDraftBatch, fileToBase64 } from "@/hooks/useOutlookDraft";
 
 interface WebinarDistribution {
   id: string;
@@ -31,6 +31,8 @@ const Webinars = () => {
   const [creatingDrafts, setCreatingDrafts] = useState(false);
   const [availablePdfs, setAvailablePdfs] = useState<string[]>([]);
   const [selectedPdf, setSelectedPdf] = useState("");
+  const [uploadedPdfBase64, setUploadedPdfBase64] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const { toast } = useToast();
   const { mutate: createDraftsBatch, isPending: isCreatingDrafts } = useOutlookDraftBatch();
 
@@ -57,6 +59,19 @@ const Webinars = () => {
         description: "No se pudo obtener la lista de PDFs disponibles",
         variant: "destructive" 
       });
+    }
+  };
+
+  const onUploadPdf = async (file: File) => {
+    try {
+      setUploadedFile(file);
+      setSelectedPdf(file.name);
+      const b64 = await fileToBase64(file);
+      setUploadedPdfBase64(b64);
+      toast({ title: 'PDF cargado', description: file.name });
+    } catch (e) {
+      console.error('Error al leer PDF local:', e);
+      toast({ title: 'Error', description: 'No se pudo leer el PDF', variant: 'destructive' });
     }
   };
 
@@ -106,27 +121,29 @@ const Webinars = () => {
 
       // Analyze PDF with AI
       try {
-        const response = await fetch('http://localhost:3001/api/webinars/read-pdf', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileName: selectedPdf })
-        });
+        let base64PdfToUse: string | null = uploadedPdfBase64;
+        if (!base64PdfToUse) {
+          const response = await fetch('http://localhost:3001/api/webinars/read-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName: selectedPdf })
+          });
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Error leyendo PDF: ${errorText}`);
-        }
-        
-        const { base64Pdf } = await response.json();
-
-        if (!base64Pdf) {
-          throw new Error('No se recibió el PDF en base64');
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Error leyendo PDF: ${errorText}`);
+          }
+          const json = await response.json();
+          base64PdfToUse = json.base64Pdf;
+          if (!base64PdfToUse) {
+            throw new Error('No se recibió el PDF en base64');
+          }
         }
 
         const { data, error: analyzeError } = await supabase.functions.invoke('analyze-webinar-pdf', {
           body: {
             distributionId: insertData.id,
-            base64Pdf: base64Pdf
+            base64Pdf: base64PdfToUse
           }
         });
 
@@ -151,6 +168,8 @@ const Webinars = () => {
       }
 
       setSelectedPdf("");
+      setUploadedFile(null);
+      setUploadedPdfBase64(null);
       fetchDistributions();
       fetchAvailablePdfs();
     } catch (error) {
@@ -343,7 +362,7 @@ const Webinars = () => {
                 <label className="text-sm font-medium">Seleccionar PDF</label>
                 <select
                   value={selectedPdf}
-                  onChange={(e) => setSelectedPdf(e.target.value)}
+                  onChange={(e) => { setSelectedPdf(e.target.value); setUploadedFile(null); setUploadedPdfBase64(null); }}
                   className="w-full px-3 py-2 border border-input rounded-md bg-background"
                   disabled={uploading}
                 >
@@ -356,14 +375,27 @@ const Webinars = () => {
                     </option>
                   ))}
                 </select>
+                <div className="mt-3">
+                  <label className="text-xs font-medium">o subir PDF desde tu equipo</label>
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    className="mt-1 block w-full text-sm text-foreground"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) await onUploadPdf(file);
+                    }}
+                    disabled={uploading}
+                  />
+                </div>
                 {availablePdfs.length === 0 && (
                   <p className="text-xs text-muted-foreground mt-2">
-                    No hay PDFs disponibles. Coloca archivos en la carpeta Webinars del proyecto.
+                    También puedes subir un PDF con el botón de arriba.
                   </p>
                 )}
               </div>
             </div>
-            <Button onClick={handleSaveDistribution} disabled={uploading || !selectedPdf} className="w-full">
+            <Button onClick={handleSaveDistribution} disabled={uploading || (!selectedPdf && !uploadedPdfBase64)} className="w-full">
               Guardar Distribución
             </Button>
           </CardContent>
