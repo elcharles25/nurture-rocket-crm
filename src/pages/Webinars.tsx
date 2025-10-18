@@ -104,6 +104,7 @@ const Webinars = () => {
       toast({ title: "Éxito", description: `Distribución guardada: ${fileName}` });
       setSelectedPdf("");
       fetchDistributions();
+      fetchAvailablePdfs();
     } catch (error) {
       toast({ title: "Error", description: `Error: ${error instanceof Error ? error.message : 'Desconocido'}`, variant: "destructive" });
     } finally {
@@ -281,9 +282,12 @@ const Webinars = () => {
                   value={selectedPdf}
                   onChange={(e) => setSelectedPdf(e.target.value)}
                   className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  disabled={uploading}
                 >
                   <option value="">-- Selecciona un PDF --</option>
-                  {availablePdfs.map((pdf) => (
+                  {availablePdfs
+                    .filter(pdf => !distributions.some(dist => dist.file_name === pdf.split('\\').pop()))
+                    .map((pdf) => (
                     <option key={pdf} value={pdf}>
                       {pdf.split('\\').pop()}
                     </option>
@@ -320,40 +324,42 @@ const Webinars = () => {
               <TableBody>
                 {distributions.map((dist) => (
                   <TableRow key={dist.id} className="text-sm leading-tight text-center align-middle">
-                    <TableCell className="p-1">{dist.month}</TableCell>
-                    <TableCell className="p-1">
+                    <TableCell className="p-4">{dist.month}</TableCell>
+                    <TableCell className="p-4">
                       <a href={dist.file_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                         {dist.file_name}
                       </a>
                     </TableCell>
-                    <TableCell className="p-1">
+                    <TableCell className="p-4">
                       <span className={`leading-tight rounded text-xs ${dist.sent ? "px-10 py-2.5 bg-green-500/20" : "px-9 py-2.5 bg-yellow-500/20"}`}>
                         {dist.sent ? "Enviado" : "Pendiente"}
                       </span>
                     </TableCell>
-                    <TableCell className="p-1">{dist.sent_at ? new Date(dist.sent_at).toLocaleDateString() : "-"}</TableCell>
-                    <TableCell className="p-1">
+                    <TableCell className="p-4">{dist.sent_at ? new Date(dist.sent_at).toLocaleDateString() : "-"}</TableCell>
+                    <TableCell className="p-4">
                       <div className="flex justify-center gap-3">
                         {!dist.sent && (
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="h-8 px-2 py-0" 
-                            onClick={() => handleCreateDrafts(dist.id)} 
-                            disabled={creatingDrafts || isCreatingDrafts} 
-                            title="Crear borradores en Outlook"
-                          >
-                            <FileText className="h-3 w-3" />
-                          </Button>
+                          <>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="h-8 px-2 py-0" 
+                              onClick={() => handleCreateDrafts(dist.id)} 
+                              disabled={creatingDrafts || isCreatingDrafts} 
+                              title="Crear borradores en Outlook"
+                            >
+                              <FileText className="h-3 w-3" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="destructive" 
+                              className="h-8 px-2 py-0" 
+                              onClick={() => handleDelete(dist.id, dist.file_url)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </>
                         )}
-                        <Button 
-                          size="sm" 
-                          variant="destructive" 
-                          className="h-8 px-2 py-0" 
-                          onClick={() => handleDelete(dist.id, dist.file_url)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
