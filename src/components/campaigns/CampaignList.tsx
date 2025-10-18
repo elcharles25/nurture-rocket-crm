@@ -280,6 +280,7 @@ const sendTodayEmails = async (campaign: Campaign) => {
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="text-center">Organización</TableHead>
             <TableHead className="text-center">Rol</TableHead>
             <TableHead className="text-center">Nombre</TableHead>
             <TableHead className="text-center">Email</TableHead>
@@ -295,15 +296,21 @@ const sendTodayEmails = async (campaign: Campaign) => {
         <TableBody>
           {campaigns.map((campaign) => (
             <TableRow key={campaign.id} className="text-center">
-              <TableCell>{campaign.contacts.gartner_role}</TableCell>
-              <TableCell>{campaign.contacts.first_name}</TableCell>
-              <TableCell className="text-xs">{campaign.contacts.email}</TableCell>
-              <TableCell>{campaign.emails_sent}/5</TableCell>
-              <TableCell className="text-sm">{campaign.email_1_date ? new Date(campaign.email_1_date).toLocaleDateString() : "-"}</TableCell>
-              <TableCell className="text-sm">{campaign.email_2_date ? new Date(campaign.email_2_date).toLocaleDateString() : "-"}</TableCell>
-              <TableCell className="text-sm">{campaign.email_3_date ? new Date(campaign.email_3_date).toLocaleDateString() : "-"}</TableCell>
-              <TableCell className="text-sm">{campaign.email_4_date ? new Date(campaign.email_4_date).toLocaleDateString() : "-"}</TableCell>
-              <TableCell className="text-sm">{campaign.email_5_date ? new Date(campaign.email_5_date).toLocaleDateString() : "-"}</TableCell>
+              <TableCell className="p-1">{campaign.contacts.organization}</TableCell>
+              <TableCell className="p-1">{campaign.contacts.gartner_role}</TableCell>
+              <TableCell className="p-1">{campaign.contacts.first_name} {campaign.contacts.last_name}</TableCell>
+              <TableCell className="p-1 text-xs">{campaign.contacts.email}</TableCell>
+              <TableCell className="p-1">{campaign.emails_sent}/5</TableCell>
+              <TableCell>
+                <span className={`leading-tight rounded text-xs ${campaign.emails_sent >= 1 ? "px-2 py-4 bg-green-500/20" : ""}`}>{campaign.email_1_date ? new Date(campaign.email_1_date).toLocaleDateString() : "-"}</span></TableCell>
+              <TableCell>
+                <span className={`leading-tight rounded text-xs ${campaign.emails_sent >= 2 ? "px-2 py-4 bg-green-500/20" : ""}`}>{campaign.email_2_date ? new Date(campaign.email_2_date).toLocaleDateString() : "-"}</span></TableCell>
+              <TableCell>
+                <span className={`leading-tight rounded text-xs ${campaign.emails_sent >= 3 ? "px-2 py-4 bg-green-500/20" : ""}`}>{campaign.email_3_date ? new Date(campaign.email_3_date).toLocaleDateString() : "-"}</span></TableCell>
+              <TableCell>
+                <span className={`leading-tight rounded text-xs ${campaign.emails_sent >= 4 ? "px-2 py-4 bg-green-500/20" : ""}`}>{campaign.email_4_date ? new Date(campaign.email_4_date).toLocaleDateString() : "-"}</span></TableCell>
+              <TableCell>
+              <span className={`leading-tight rounded text-xs ${campaign.emails_sent >= 5 ? "px-2 py-4 bg-green-500/20" : ""}`}>{campaign.email_5_date ? new Date(campaign.email_5_date).toLocaleDateString() : "-"}</span></TableCell>
               <TableCell>
                 <div className="flex justify-center gap-3">
                   {campaign.start_campaign && getNextEmailNumber(campaign) && (
