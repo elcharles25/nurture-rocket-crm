@@ -112,32 +112,40 @@ const Webinars = () => {
           body: JSON.stringify({ fileName: selectedPdf })
         });
 
-        if (!response.ok) throw new Error('Error leyendo PDF');
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Error leyendo PDF: ${errorText}`);
+        }
+        
         const { base64Pdf } = await response.json();
 
-        const { error: analyzeError } = await supabase.functions.invoke('analyze-webinar-pdf', {
+        if (!base64Pdf) {
+          throw new Error('No se recibió el PDF en base64');
+        }
+
+        const { data, error: analyzeError } = await supabase.functions.invoke('analyze-webinar-pdf', {
           body: {
             distributionId: insertData.id,
-            fileUrl: pdfPath,
-            base64Pdf
+            base64Pdf: base64Pdf
           }
         });
 
         if (analyzeError) {
           console.error('Error analyzing PDF:', analyzeError);
           toast({ 
-            title: "Advertencia", 
-            description: "PDF guardado pero el análisis falló",
+            title: "Error en análisis", 
+            description: analyzeError.message || "El análisis con IA falló",
             variant: "destructive" 
           });
         } else {
+          console.log('Analysis successful:', data);
           toast({ title: "Éxito", description: "Distribución guardada y tabla generada" });
         }
       } catch (analyzeError) {
         console.error('Error analyzing PDF:', analyzeError);
         toast({ 
-          title: "Advertencia", 
-          description: "PDF guardado pero el análisis falló",
+          title: "Error", 
+          description: `Error: ${analyzeError instanceof Error ? analyzeError.message : 'Desconocido'}`,
           variant: "destructive" 
         });
       }

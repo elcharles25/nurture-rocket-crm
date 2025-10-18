@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { distributionId, fileUrl } = await req.json();
+    const { distributionId, base64Pdf } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -23,16 +23,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('Downloading PDF from:', fileUrl);
-    
-    // Download the PDF file
-    const pdfResponse = await fetch(fileUrl);
-    if (!pdfResponse.ok) {
-      throw new Error('Failed to download PDF');
-    }
-    
-    const pdfBuffer = await pdfResponse.arrayBuffer();
-    const base64Pdf = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
+    console.log('Analyzing PDF with AI for distribution:', distributionId);
 
     console.log('Analyzing PDF with AI...');
 
