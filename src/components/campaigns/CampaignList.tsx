@@ -268,7 +268,7 @@ const sendTodayEmails = async (campaign: Campaign) => {
   for (let i = 1; i <= 5; i++) {
     const dateField = `email_${i}_date` as keyof Campaign;
     const emailDate = campaign[dateField];
-    const emailDateOnly = emailDate ? emailDate.split('T')[0] : null;
+    const emailDateOnly = emailDate ? String(emailDate).split('T')[0] : null;
     console.log(`Email ${i}: date=${emailDateOnly}, sent=${campaign.emails_sent >= i}, shouldSend=${emailDateOnly && emailDateOnly <= localDate && campaign.emails_sent < i}`);
     
     if (emailDateOnly && emailDateOnly <= localDate && campaign.emails_sent < i) {
