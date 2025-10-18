@@ -50,9 +50,40 @@ export const CampaignList = () => {
     email_1_date: "",
   });
 
-  useEffect(() => {
-    initData();
-  }, []);
+ useEffect(() => {
+  if (campaigns.length > 0 && !loading) {
+    console.log('INICIANDO AUTO-ENVÍO');
+    autoSendDailyEmails();
+  }
+}, [campaigns, loading]);
+
+const autoSendDailyEmails = async () => {
+  try {
+    console.log('Verificando emails para enviar...');
+    const today = new Date();
+    const localDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
+      .toISOString()
+      .split('T')[0];
+    
+    for (const campaign of campaigns) {
+      if (!campaign.start_campaign) continue;
+
+      for (let i = 1; i <= 5; i++) {
+        const dateField = `email_${i}_date` as keyof Campaign;
+        const emailDate = campaign[dateField];
+        const emailDateOnly = emailDate ? emailDate.split('T')[0] : null;
+        
+        if (emailDateOnly && emailDateOnly <= localDate && campaign.emails_sent < i) {
+          console.log(`Auto-enviando email ${i}`);
+          await sendEmail(campaign, i);
+          break;
+        }
+      }
+    }
+  } catch (e) {
+    console.log('Auto send completed');
+  }
+};
 
   const initData = async () => {
     await fetchCampaigns();
@@ -114,6 +145,7 @@ export const CampaignList = () => {
       status: formData.start_campaign ? 'active' : 'pending',
     };
 
+    
     const { error } = await supabase.from("campaigns").insert([payload]);
     if (error) {
       toast({ title: "Error", description: "No se pudo crear la campaña", variant: "destructive" });
@@ -146,6 +178,32 @@ export const CampaignList = () => {
         return;
       }
 
+      // Obtener nombre del Account Manager
+      const { data: amData } = await supabase
+        .from("settings")
+        .select("value")
+        .eq("key", "account_manager")
+        .maybeSingle();
+      const accountManagerName = (amData?.value as any)?.name || '';
+
+      // Obtener firma
+      const { data: signatureData } = await supabase
+        .from("settings")
+        .select("value")
+        .eq("key", "email_signature")
+        .maybeSingle();
+      let signature = '';
+      if (signatureData?.value) {
+        const value = signatureData.value as any;
+        signature = value?.signature || "";
+        signature = signature.trim();
+        if (signature.startsWith('"') && signature.endsWith('"')) {
+          signature = signature.slice(1, -1);
+        }
+        signature = signature.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\\//g, '/');
+      }
+
+      // Obtener plantilla
       const { data: template } = await supabase
         .from('campaign_templates')
         .select(`email_${emailNumber}_subject, email_${emailNumber}_html`)
@@ -162,8 +220,14 @@ export const CampaignList = () => {
 
       let body = template[`email_${emailNumber}_html`];
         body = body.replace(/{{Nombre}}/g, campaign.contacts.first_name || '');
+        body = body.replace(/{{nombreAE}}/g, accountManagerName);
         body = body.replace(/{{compania}}/g, campaign.contacts.organization || '');
         body = body.replace(/{{ano}}/g, currentYear);
+        
+        // Agregar firma al final
+        if (signature) {
+          body = body + '<br/><br/>' + signature;
+        }
 
       await fetch('http://localhost:3001/api/draft-email', {
         method: 'POST',
@@ -195,26 +259,26 @@ const sendTodayEmails = async (campaign: Campaign) => {
     .toISOString()
     .split('T')[0];
   
-  console.log('Fecha local:', localDate);
+  console.log('=== DEBUG sendTodayEmails ===');
+  console.log('Campaign:', campaign.id);
+  console.log('Start campaign:', campaign.start_campaign);
+  console.log('Emails sent:', campaign.emails_sent);
+  console.log('Today:', localDate);
   
   for (let i = 1; i <= 5; i++) {
     const dateField = `email_${i}_date` as keyof Campaign;
     const emailDate = campaign[dateField];
-    
-    // Extraer solo la fecha (YYYY-MM-DD) del timestamp
     const emailDateOnly = emailDate ? emailDate.split('T')[0] : null;
-    
-    console.log(`Email ${i}: ${emailDateOnly} <= ${localDate}?`, emailDateOnly && emailDateOnly <= localDate);
+    console.log(`Email ${i}: date=${emailDateOnly}, sent=${campaign.emails_sent >= i}, shouldSend=${emailDateOnly && emailDateOnly <= localDate && campaign.emails_sent < i}`);
     
     if (emailDateOnly && emailDateOnly <= localDate && campaign.emails_sent < i) {
-      console.log(`Enviando email ${i}`);
+      console.log(`✓ Enviando email ${i}`);
       await sendEmail(campaign, i);
       return;
     }
   }
-  toast({ title: "Info", description: "No hay emails pendientes para hoy", variant: "default" });
+  console.log('No hay emails para enviar hoy');
 };
-
   const handleDelete = async (id: string) => {
     await supabase.from("campaigns").delete().eq("id", id);
     toast({ title: "Éxito", description: "Campaña eliminada" });
