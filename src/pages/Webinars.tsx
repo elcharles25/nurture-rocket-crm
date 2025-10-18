@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Send, Trash2, Settings, FileText } from "lucide-react";
+import { Settings, FileText, Trash2 } from "lucide-react";
 import { WebinarEmailEditor } from "@/components/webinars/WebinarEmailEditor";
 import { useOutlookDraftBatch } from "@/hooks/useOutlookDraft";
 
@@ -204,7 +204,25 @@ const Webinars = () => {
       createDraftsBatch(
         { emails: emailsToCreate },
         {
-          onSettled: () => setCreatingDrafts(false),
+          onSuccess: async () => {
+            // Actualizar el estado a enviado
+            const { error } = await supabase
+              .from("webinar_distributions")
+              .update({ sent: true, sent_at: new Date().toISOString() })
+              .eq("id", distributionId);
+
+            if (!error) {
+              toast({
+                title: "Éxito",
+                description: "Borradores creados y estado actualizado",
+              });
+              fetchDistributions();
+            }
+            setCreatingDrafts(false);
+          },
+          onError: () => {
+            setCreatingDrafts(false);
+          },
         }
       );
     } catch (error) {
@@ -215,43 +233,6 @@ const Webinars = () => {
         variant: "destructive",
       });
       setCreatingDrafts(false);
-    }
-  };
-
-  const handleSendWebinars = async (distributionId: string) => {
-    if (!confirm("¿Enviar webinars a todos los contactos suscritos?")) return;
-
-    toast({ title: "Enviando", description: "Enviando webinars a los contactos..." });
-
-    try {
-      const { data, error } = await supabase.functions.invoke("send-webinar-emails", {
-        body: { distributionId },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data?.success) {
-        toast({ 
-          title: "Éxito", 
-          description: `Se enviaron ${data.emailsSent} emails correctamente`,
-        });
-        fetchDistributions();
-      } else {
-        toast({ 
-          title: "Advertencia", 
-          description: data?.message || "No hay contactos suscritos a webinars",
-          variant: "destructive" 
-        });
-      }
-    } catch (error) {
-      console.error("Error sending webinars:", error);
-      toast({ 
-        title: "Error", 
-        description: "No se pudieron enviar los webinars",
-        variant: "destructive" 
-      });
     }
   };
 
@@ -329,45 +310,49 @@ const Webinars = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Mes</TableHead>
-                  <TableHead>Archivo</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Fecha Envío</TableHead>
-                  <TableHead>Acciones</TableHead>
+                  <TableHead className="text-center">Mes</TableHead>
+                  <TableHead className="text-center">Archivo</TableHead>
+                  <TableHead className="text-center">Estado</TableHead>
+                  <TableHead className="text-center">Fecha Envío</TableHead>
+                  <TableHead className="text-center">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {distributions.map((dist) => (
-                  <TableRow key={dist.id}>
-                    <TableCell>{dist.month}</TableCell>
-                    <TableCell>
+                  <TableRow key={dist.id} className="text-sm leading-tight text-center align-middle">
+                    <TableCell className="p-1">{dist.month}</TableCell>
+                    <TableCell className="p-1">
                       <a href={dist.file_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                         {dist.file_name}
                       </a>
                     </TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded text-xs ${dist.sent ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}>
+                    <TableCell className="p-1">
+                      <span className={`leading-tight rounded text-xs ${dist.sent ? "px-10 py-2.5 bg-green-500/20" : "px-9 py-2.5 bg-yellow-500/20"}`}>
                         {dist.sent ? "Enviado" : "Pendiente"}
                       </span>
                     </TableCell>
-                    <TableCell>{dist.sent_at ? new Date(dist.sent_at).toLocaleDateString() : "-"}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
+                    <TableCell className="p-1">{dist.sent_at ? new Date(dist.sent_at).toLocaleDateString() : "-"}</TableCell>
+                    <TableCell className="p-1">
+                      <div className="flex justify-center gap-3">
                         {!dist.sent && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleCreateDrafts(dist.id)}
-                              disabled={creatingDrafts || isCreatingDrafts}
-                              title="Crear borradores en Outlook"
-                            >
-                              <FileText className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="h-8 px-2 py-0" 
+                            onClick={() => handleCreateDrafts(dist.id)} 
+                            disabled={creatingDrafts || isCreatingDrafts} 
+                            title="Crear borradores en Outlook"
+                          >
+                            <FileText className="h-3 w-3" />
+                          </Button>
                         )}
-                        <Button size="sm" variant="destructive" onClick={() => handleDelete(dist.id, dist.file_url)}>
-                          <Trash2 className="h-4 w-4" />
+                        <Button 
+                          size="sm" 
+                          variant="destructive" 
+                          className="h-8 px-2 py-0" 
+                          onClick={() => handleDelete(dist.id, dist.file_url)}
+                        >
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     </TableCell>
