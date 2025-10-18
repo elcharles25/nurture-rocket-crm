@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, Send } from "lucide-react";
+import { formatDateES } from "@/utils/dateFormatter";
 
 interface Campaign {
   id: string;
@@ -49,6 +50,10 @@ export const CampaignList = () => {
     start_campaign: false,
     email_1_date: "",
   });
+
+  useEffect(() => {
+    initData();
+  }, []);
 
  useEffect(() => {
   if (campaigns.length > 0 && !loading) {
@@ -366,15 +371,15 @@ const sendTodayEmails = async (campaign: Campaign) => {
               <TableCell className="p-1 text-xs">{campaign.contacts.email}</TableCell>
               <TableCell className="p-1">{campaign.emails_sent}/5</TableCell>
               <TableCell>
-                <span className={`leading-tight rounded text-xs ${campaign.emails_sent >= 1 ? "px-2 py-4 bg-green-500/20" : ""}`}>{campaign.email_1_date ? new Date(campaign.email_1_date).toLocaleDateString() : "-"}</span></TableCell>
+                <span className={`leading-tight rounded text-xs ${campaign.emails_sent >= 1 ? "px-2 py-4 bg-green-500/20" : ""}`}>{formatDateES(campaign.email_1_date)}</span></TableCell>
               <TableCell>
-                <span className={`leading-tight rounded text-xs ${campaign.emails_sent >= 2 ? "px-2 py-4 bg-green-500/20" : ""}`}>{campaign.email_2_date ? new Date(campaign.email_2_date).toLocaleDateString() : "-"}</span></TableCell>
+                <span className={`leading-tight rounded text-xs ${campaign.emails_sent >= 2 ? "px-2 py-4 bg-green-500/20" : ""}`}>{formatDateES(campaign.email_2_date)}</span></TableCell>
               <TableCell>
-                <span className={`leading-tight rounded text-xs ${campaign.emails_sent >= 3 ? "px-2 py-4 bg-green-500/20" : ""}`}>{campaign.email_3_date ? new Date(campaign.email_3_date).toLocaleDateString() : "-"}</span></TableCell>
+                <span className={`leading-tight rounded text-xs ${campaign.emails_sent >= 3 ? "px-2 py-4 bg-green-500/20" : ""}`}>{formatDateES(campaign.email_3_date)}</span></TableCell>
               <TableCell>
-                <span className={`leading-tight rounded text-xs ${campaign.emails_sent >= 4 ? "px-2 py-4 bg-green-500/20" : ""}`}>{campaign.email_4_date ? new Date(campaign.email_4_date).toLocaleDateString() : "-"}</span></TableCell>
+                <span className={`leading-tight rounded text-xs ${campaign.emails_sent >= 4 ? "px-2 py-4 bg-green-500/20" : ""}`}>{formatDateES(campaign.email_4_date)}</span></TableCell>
               <TableCell>
-              <span className={`leading-tight rounded text-xs ${campaign.emails_sent >= 5 ? "px-2 py-4 bg-green-500/20" : ""}`}>{campaign.email_5_date ? new Date(campaign.email_5_date).toLocaleDateString() : "-"}</span></TableCell>
+              <span className={`leading-tight rounded text-xs ${campaign.emails_sent >= 5 ? "px-2 py-4 bg-green-500/20" : ""}`}>{formatDateES(campaign.email_5_date)}</span></TableCell>
               <TableCell>
                 <div className="flex justify-center gap-3">
                   {campaign.start_campaign && getNextEmailNumber(campaign) && (
