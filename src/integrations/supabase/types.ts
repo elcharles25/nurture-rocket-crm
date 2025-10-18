@@ -232,6 +232,7 @@ export type Database = {
           month: string
           sent: boolean | null
           sent_at: string | null
+          webinar_table: string | null
         }
         Insert: {
           created_at?: string | null
@@ -243,6 +244,7 @@ export type Database = {
           month: string
           sent?: boolean | null
           sent_at?: string | null
+          webinar_table?: string | null
         }
         Update: {
           created_at?: string | null
@@ -254,6 +256,7 @@ export type Database = {
           month?: string
           sent?: boolean | null
           sent_at?: string | null
+          webinar_table?: string | null
         }
         Relationships: []
       }

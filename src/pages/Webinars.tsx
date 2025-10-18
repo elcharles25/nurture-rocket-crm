@@ -20,6 +20,7 @@ interface WebinarDistribution {
   sent: boolean;
   sent_at: string | null;
   created_at: string;
+  webinar_table: string | null;
 }
 
 const Webinars = () => {
@@ -101,7 +102,46 @@ const Webinars = () => {
         return;
       }
 
-      toast({ title: "Éxito", description: `Distribución guardada: ${fileName}` });
+      toast({ title: "Analizando PDF", description: "Generando tabla de webinars con IA..." });
+
+      // Analyze PDF with AI
+      try {
+        const response = await fetch('http://localhost:3001/api/webinars/read-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName: selectedPdf })
+        });
+
+        if (!response.ok) throw new Error('Error leyendo PDF');
+        const { base64Pdf } = await response.json();
+
+        const { error: analyzeError } = await supabase.functions.invoke('analyze-webinar-pdf', {
+          body: {
+            distributionId: insertData.id,
+            fileUrl: pdfPath,
+            base64Pdf
+          }
+        });
+
+        if (analyzeError) {
+          console.error('Error analyzing PDF:', analyzeError);
+          toast({ 
+            title: "Advertencia", 
+            description: "PDF guardado pero el análisis falló",
+            variant: "destructive" 
+          });
+        } else {
+          toast({ title: "Éxito", description: "Distribución guardada y tabla generada" });
+        }
+      } catch (analyzeError) {
+        console.error('Error analyzing PDF:', analyzeError);
+        toast({ 
+          title: "Advertencia", 
+          description: "PDF guardado pero el análisis falló",
+          variant: "destructive" 
+        });
+      }
+
       setSelectedPdf("");
       fetchDistributions();
       fetchAvailablePdfs();
@@ -176,6 +216,16 @@ const Webinars = () => {
         return;
       }
 
+      if (!distribution.webinar_table) {
+        toast({
+          title: "Error",
+          description: "La tabla de webinars aún no se ha generado. Por favor espera unos momentos.",
+          variant: "destructive",
+        });
+        setCreatingDrafts(false);
+        return;
+      }
+
       const [ano, mes] = distribution.month.split('-');
       const mesesEnEspanol = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
       const mesNombre = mesesEnEspanol[parseInt(mes) - 1];
@@ -184,6 +234,11 @@ const Webinars = () => {
         let body = distribution.email_html
           .replace(/{{Nombre}}/g, contact.first_name || "")
           .replace(/{{nombre}}/g, contact.first_name || "");
+
+        // Add the webinar table to the email body
+        if (distribution.webinar_table) {
+          body = body + `\n\n${distribution.webinar_table}`;
+        }
 
         if (signature) {
           body = body + signature;
