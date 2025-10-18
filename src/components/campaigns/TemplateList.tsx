@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2, Paperclip } from "lucide-react";
 import { TemplateEditor } from "./TemplateEditor";
+import { formatDateES } from "@/utils/dateFormatter";
 
 interface Template {
   id: string;
@@ -83,7 +84,7 @@ export function TemplateList() {
                     </span>
                   )}
                 </TableCell>
-                <TableCell>{new Date(template.created_at).toLocaleDateString()}</TableCell>
+                <TableCell>{formatDateES(template.created_at)}</TableCell> 
                 <TableCell>
                   <div className="flex gap-2">
                     <Button
