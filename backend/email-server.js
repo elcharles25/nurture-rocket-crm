@@ -259,10 +259,40 @@ app.get('/api/webinars/list-pdfs', async (req, res) => {
   }
 });
 
+// Lee un PDF por nombre y devuelve el contenido en base64 (sin prefijo data:)
+app.post('/api/webinars/read-pdf', async (req, res) => {
+  try {
+    const { fileName } = req.body;
+    if (!fileName) return res.status(400).json({ error: 'fileName requerido' });
+
+    const fs_promises = await import('fs').then(m => m.promises);
+    const webinarsDir = path.join(__dirname, '..', 'Webinars');
+    const filePath = path.join(webinarsDir, fileName);
+
+    console.log('Leyendo PDF:', filePath);
+
+    const exists = fs.existsSync(filePath);
+    if (!exists) {
+      return res.status(404).json({ error: 'Archivo no encontrado' });
+    }
+
+    const buffer = await fs_promises.readFile(filePath);
+    const base64Pdf = buffer.toString('base64');
+
+    res.json({ success: true, base64Pdf });
+  } catch (error) {
+    console.error('Error leyendo PDF:', error);
+    res.status(500).json({
+      error: 'Error reading PDF',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
 app.listen(PORT, () => {
   console.log(`\n✅ Servidor de email ejecutándose en http://localhost:${PORT}`);
-  console.log('\nEndpoints disponibles:');
+  console.log('  GET  /api/webinars/list-pdfs - Listar PDFs locales');
+  console.log('  POST /api/webinars/read-pdf - Leer PDF y devolver base64');
   console.log('  POST /api/draft-email - Crear un borrador');
   console.log('  POST /api/draft-emails-batch - Crear múltiples borradores');
-  console.log('  GET /api/health - Health check\n');
+  console.log('  GET  /api/health - Health check\n');
 });
