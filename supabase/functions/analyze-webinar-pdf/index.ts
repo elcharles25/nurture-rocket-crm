@@ -36,30 +36,7 @@ serve(async (req) => {
 
     console.log('Analyzing PDF with AI...');
 
-    // Get Gartner roles from contacts
-    const { data: contacts } = await supabase
-      .from('contacts')
-      .select('gartner_role')
-      .not('gartner_role', 'is', null);
-
-    const uniqueRoles = [...new Set(contacts?.map(c => c.gartner_role) || [])];
-
-    const prompt = `Analiza este documento PDF de webinars y extrae información sobre los webinars disponibles. 
-    Para cada webinar identifica:
-    - Título del webinar
-    - Descripción breve
-    - Cuál de estos roles de Gartner sería más relevante: ${uniqueRoles.join(', ')}
-    - Puntuación de relevancia (1-10) para cada rol
-
-    Devuelve SOLO un JSON array con este formato:
-    [
-      {
-        "title": "título del webinar",
-        "description": "descripción breve",
-        "gartner_role": "rol más relevante",
-        "relevance_score": 8
-      }
-    ]`;
+    const prompt = `En base al siguiente documento adjunto, donde aparecen un listado de webinars, créame una tabla en formato separado por | donde aparezca para los roles, CIO, CISO, CDAO, Talent, Workplace, Procurement, Enterprise Architect y CAIO, los 2 webinars más interesantes para ellos en base a las prioridades más relevantes identificadas por Gartner para cada uno de los roles. La tabla debe tener la siguiente configuración: Rol | Webinar | fecha | Hora | Analista. La tabla no debe contener webinars cuyo idioma no sea inglés. La tabla debe incluir en la cabecera Rol | Webinar | fecha | Hora | Analista y en las filas únicamente el contenido.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -100,36 +77,23 @@ serve(async (req) => {
     
     console.log('AI Response:', content);
 
-    // Parse the JSON response
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      throw new Error('No JSON found in AI response');
+    // Store the generated table in the distribution
+    const { error: updateError } = await supabase
+      .from('webinar_distributions')
+      .update({ 
+        webinar_table: content 
+      })
+      .eq('id', distributionId);
+
+    if (updateError) {
+      console.error('Update error:', updateError);
+      throw updateError;
     }
 
-    const webinars = JSON.parse(jsonMatch[0]);
-
-    // Insert recommendations into database
-    const recommendations = webinars.map((w: any) => ({
-      distribution_id: distributionId,
-      webinar_title: w.title,
-      webinar_description: w.description,
-      gartner_role: w.gartner_role,
-      relevance_score: w.relevance_score
-    }));
-
-    const { error: insertError } = await supabase
-      .from('webinar_recommendations')
-      .insert(recommendations);
-
-    if (insertError) {
-      console.error('Insert error:', insertError);
-      throw insertError;
-    }
-
-    console.log('Successfully created recommendations:', recommendations.length);
+    console.log('Successfully saved webinar table for distribution:', distributionId);
 
     return new Response(
-      JSON.stringify({ success: true, recommendations }),
+      JSON.stringify({ success: true, table: content }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
