@@ -21,8 +21,6 @@ interface Campaign {
   email_4_date: string | null;
   email_5_date: string | null;
   status: string;
-  response_date: string | null;
-  response_text: string | null;
   emails_sent: number;
   contacts: {
     first_name: string;
@@ -30,7 +28,6 @@ interface Campaign {
     email: string;
     organization: string;
     gartner_role: string;
-    title: string;
   };
   campaign_templates?: {
     name: string;
@@ -41,7 +38,9 @@ export const CampaignList = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
+  const [filteredTemplates, setFilteredTemplates] = useState<any[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -49,27 +48,25 @@ export const CampaignList = () => {
     template_id: "",
     start_campaign: false,
     email_1_date: "",
-    email_2_date: "",
-    email_3_date: "",
-    email_4_date: "",
-    email_5_date: "",
   });
 
   useEffect(() => {
-    fetchCampaigns();
-    fetchContacts();
-    fetchTemplates();
+    initData();
   }, []);
 
-  const fetchCampaigns = async () => {
-    const { data, error } = await supabase
-      .from("campaigns")
-      .select("*, contacts(first_name, last_name, email, organization, gartner_role, title), campaign_templates(name)")
-      .order("created_at", { ascending: false });
+  const initData = async () => {
+    await fetchCampaigns();
+    await fetchContacts();
+    await fetchTemplates();
+    setLoading(false);
+  };
 
-    if (!error && data) {
-      setCampaigns(data as any);
-    }
+  const fetchCampaigns = async () => {
+    const { data } = await supabase
+      .from("campaigns")
+      .select("*, contacts(first_name, last_name, email, organization, gartner_role), campaign_templates(name)")
+      .order("created_at", { ascending: false });
+    setCampaigns(data as Campaign[]);
   };
 
   const fetchContacts = async () => {
@@ -93,11 +90,18 @@ export const CampaignList = () => {
     return dates;
   };
 
+  const handleContactChange = (contactId: string) => {
+    setFormData({ ...formData, contact_id: contactId, template_id: "" });
+    const contact = contacts.find(c => c.id === contactId);
+    if (contact) {
+      const available = templates.filter(t => t.gartner_role === contact.gartner_role);
+      setFilteredTemplates(available);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const dates = calculateDates(formData.email_1_date);
-
     const payload = {
       contact_id: formData.contact_id,
       template_id: formData.template_id || null,
@@ -111,11 +115,10 @@ export const CampaignList = () => {
     };
 
     const { error } = await supabase.from("campaigns").insert([payload]);
-
     if (error) {
       toast({ title: "Error", description: "No se pudo crear la campaña", variant: "destructive" });
     } else {
-      toast({ title: "Éxito", description: "Campaña creada correctamente" });
+      toast({ title: "Éxito", description: "Campaña creada" });
       setIsDialogOpen(false);
       fetchCampaigns();
       resetForm();
@@ -123,130 +126,151 @@ export const CampaignList = () => {
   };
 
   const resetForm = () => {
-    setFormData({
-      contact_id: "",
-      template_id: "",
-      start_campaign: false,
-      email_1_date: "",
-      email_2_date: "",
-      email_3_date: "",
-      email_4_date: "",
-      email_5_date: "",
-    });
+    setFormData({ contact_id: "", template_id: "", start_campaign: false, email_1_date: "" });
+    setFilteredTemplates([]);
   };
 
-  const handleSendEmail = async (campaignId: string, emailNumber: number) => {
-    if (!confirm(`¿Enviar email ${emailNumber} de esta campaña?`)) return;
+  const getNextEmailNumber = (campaign: Campaign): number | null => {
+    if (!campaign.email_1_date) return 1;
+    if (!campaign.email_2_date) return 2;
+    if (!campaign.email_3_date) return 3;
+    if (!campaign.email_4_date) return 4;
+    if (!campaign.email_5_date) return 5;
+    return null;
+  };
 
-    toast({ title: "Enviando", description: "Enviando email..." });
-
+  const sendEmail = async (campaign: Campaign, emailNumber: number) => {
     try {
-      const { data, error } = await supabase.functions.invoke("send-campaign-email", {
-        body: { 
-          campaignId,
-          emailNumber 
-        },
+      if (campaign.emails_sent >= emailNumber) {
+        toast({ title: "Info", description: `Email ${emailNumber} ya fue enviado`, variant: "default" });
+        return;
+      }
+
+      const { data: template } = await supabase
+        .from('campaign_templates')
+        .select(`email_${emailNumber}_subject, email_${emailNumber}_html`)
+        .eq('id', campaign.template_id)
+        .single();
+
+      if (!template) throw new Error('Template not found');
+
+      const currentYear = new Date().getFullYear().toString();
+
+      let subject = template[`email_${emailNumber}_subject`];
+        subject = subject.replace(/{{Nombre}}/g, campaign.contacts.first_name || '');
+        subject = subject.replace(/{{ano}}/g, currentYear);
+
+      let body = template[`email_${emailNumber}_html`];
+        body = body.replace(/{{Nombre}}/g, campaign.contacts.first_name || '');
+        body = body.replace(/{{compania}}/g, campaign.contacts.organization || '');
+        body = body.replace(/{{ano}}/g, currentYear);
+
+      await fetch('http://localhost:3001/api/draft-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: campaign.contacts.email, subject, body }),
       });
 
-      if (error) {
-        throw error;
-      }
+      await supabase.from("campaigns").update({ emails_sent: emailNumber }).eq("id", campaign.id);
 
-      if (data?.success) {
-        toast({ title: "Éxito", description: "Email enviado correctamente" });
-        fetchCampaigns();
-      } else {
-        toast({ title: "Error", description: "No se pudo enviar el email", variant: "destructive" });
+      const today = new Date().toISOString().split('T')[0];
+      const updates: any = {};
+      for (let i = 1; i <= 5; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() + (i - 1) * 3);
+        updates[`email_${i}_date`] = d.toISOString().split('T')[0];
       }
+      await supabase.from("campaigns").update(updates).eq("id", campaign.id);
+
+      toast({ title: "Éxito", description: `Email ${emailNumber} enviado` });
+      fetchCampaigns();
     } catch (error) {
-      console.error("Error sending email:", error);
-      toast({ title: "Error", description: "No se pudo enviar el email", variant: "destructive" });
+      toast({ title: "Error", description: String(error), variant: "destructive" });
     }
   };
+
+const sendTodayEmails = async (campaign: Campaign) => {
+  const today = new Date();
+  const localDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
+    .toISOString()
+    .split('T')[0];
+  
+  console.log('Fecha local:', localDate);
+  
+  for (let i = 1; i <= 5; i++) {
+    const dateField = `email_${i}_date` as keyof Campaign;
+    const emailDate = campaign[dateField];
+    
+    // Extraer solo la fecha (YYYY-MM-DD) del timestamp
+    const emailDateOnly = emailDate ? emailDate.split('T')[0] : null;
+    
+    console.log(`Email ${i}: ${emailDateOnly} <= ${localDate}?`, emailDateOnly && emailDateOnly <= localDate);
+    
+    if (emailDateOnly && emailDateOnly <= localDate && campaign.emails_sent < i) {
+      console.log(`Enviando email ${i}`);
+      await sendEmail(campaign, i);
+      return;
+    }
+  }
+  toast({ title: "Info", description: "No hay emails pendientes para hoy", variant: "default" });
+};
 
   const handleDelete = async (id: string) => {
-    if (!confirm("¿Eliminar esta campaña?")) return;
-
-    const { error } = await supabase.from("campaigns").delete().eq("id", id);
-
-    if (error) {
-      toast({ title: "Error", description: "No se pudo eliminar", variant: "destructive" });
-    } else {
-      toast({ title: "Éxito", description: "Campaña eliminada" });
-      fetchCampaigns();
-    }
+    await supabase.from("campaigns").delete().eq("id", id);
+    toast({ title: "Éxito", description: "Campaña eliminada" });
+    fetchCampaigns();
   };
+
+  if (loading) return <div className="p-6">Cargando...</div>;
 
   return (
     <div className="bg-card rounded-lg shadow p-6">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Campañas Programadas</h2>
+        <h2 className="text-xl font-semibold">Campañas</h2>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={resetForm}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nueva Campaña
-            </Button>
+            <Button onClick={resetForm}><Plus className="mr-2 h-4 w-4" />Nueva Campaña</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Crear Nueva Campaña</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>Nueva Campaña</DialogTitle></DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="contact_id">Contacto *</Label>
-                <Select value={formData.contact_id} onValueChange={(value) => setFormData({ ...formData, contact_id: value })}>
+                <Label>Contacto</Label>
+                <Select value={formData.contact_id} onValueChange={handleContactChange}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar contacto" />
+                    <SelectValue placeholder="Seleccionar" />
                   </SelectTrigger>
                   <SelectContent>
-                    {contacts.map((contact) => (
-                      <SelectItem key={contact.id} value={contact.id}>
-                        {contact.first_name} {contact.last_name} - {contact.organization}
-                      </SelectItem>
+                    {contacts.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.first_name} {c.last_name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label htmlFor="template_id">Plantilla</Label>
-                <Select value={formData.template_id} onValueChange={(value) => setFormData({ ...formData, template_id: value })}>
+                <Label>Plantilla</Label>
+                <Select value={formData.template_id} onValueChange={(v) => setFormData({ ...formData, template_id: v })}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar plantilla" />
+                    <SelectValue placeholder="Seleccionar" />
                   </SelectTrigger>
                   <SelectContent>
-                    {templates.map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.name}
-                      </SelectItem>
+                    {filteredTemplates.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label htmlFor="email_1_date">Fecha Inicio (Email 1) *</Label>
-                <Input
-                  id="email_1_date"
-                  type="date"
-                  value={formData.email_1_date}
-                  onChange={(e) => setFormData({ ...formData, email_1_date: e.target.value })}
-                  required
-                />
-                <p className="text-sm text-muted-foreground mt-1">Los siguientes emails se programarán cada 3 días</p>
+                <Label>Fecha Inicio</Label>
+                <Input type="date" value={formData.email_1_date} onChange={(e) => setFormData({ ...formData, email_1_date: e.target.value })} required />
               </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="start_campaign"
-                  checked={formData.start_campaign}
-                  onCheckedChange={(checked) => setFormData({ ...formData, start_campaign: checked as boolean })}
-                />
-                <Label htmlFor="start_campaign">Iniciar campaña automáticamente</Label>
+              <div className="flex items-center gap-2">
+                <Checkbox checked={formData.start_campaign} onCheckedChange={(v) => setFormData({ ...formData, start_campaign: v as boolean })} />
+                <Label>Auto-iniciar</Label>
               </div>
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit">Crear Campaña</Button>
+              <div className="flex gap-2 justify-end">
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+                <Button type="submit">Crear</Button>
               </div>
             </form>
           </DialogContent>
@@ -256,70 +280,42 @@ export const CampaignList = () => {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Rol</TableHead>
-            <TableHead>Plantilla</TableHead>
-            <TableHead>Contacto</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead>Emails Enviados</TableHead>
-            <TableHead>Fecha Email 1</TableHead>
-            <TableHead>Acciones</TableHead>
+            <TableHead className="text-center">Rol</TableHead>
+            <TableHead className="text-center">Nombre</TableHead>
+            <TableHead className="text-center">Email</TableHead>
+            <TableHead className="text-center">Enviados</TableHead>
+            <TableHead className="text-center">Email 1</TableHead>
+            <TableHead className="text-center">Email 2</TableHead>
+            <TableHead className="text-center">Email 3</TableHead>
+            <TableHead className="text-center">Email 4</TableHead>
+            <TableHead className="text-center">Email 5</TableHead>
+            <TableHead className="text-center">Acciones</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {campaigns.map((campaign) => (
-            <TableRow key={campaign.id}>
+            <TableRow key={campaign.id} className="text-center">
               <TableCell>{campaign.contacts.gartner_role}</TableCell>
-              <TableCell>{campaign.campaign_templates?.name || "Sin plantilla"}</TableCell>
+              <TableCell>{campaign.contacts.first_name}</TableCell>
+              <TableCell className="text-xs">{campaign.contacts.email}</TableCell>
+              <TableCell>{campaign.emails_sent}/5</TableCell>
+              <TableCell className="text-sm">{campaign.email_1_date ? new Date(campaign.email_1_date).toLocaleDateString() : "-"}</TableCell>
+              <TableCell className="text-sm">{campaign.email_2_date ? new Date(campaign.email_2_date).toLocaleDateString() : "-"}</TableCell>
+              <TableCell className="text-sm">{campaign.email_3_date ? new Date(campaign.email_3_date).toLocaleDateString() : "-"}</TableCell>
+              <TableCell className="text-sm">{campaign.email_4_date ? new Date(campaign.email_4_date).toLocaleDateString() : "-"}</TableCell>
+              <TableCell className="text-sm">{campaign.email_5_date ? new Date(campaign.email_5_date).toLocaleDateString() : "-"}</TableCell>
               <TableCell>
-                {campaign.contacts.first_name} {campaign.contacts.last_name}
-              </TableCell>
-              <TableCell>{campaign.contacts.email}</TableCell>
-              <TableCell>
-                <span className={`px-2 py-1 rounded text-xs ${campaign.status === "completed" ? "bg-green-100 text-green-800" : campaign.status === "active" ? "bg-blue-100 text-blue-800" : "bg-yellow-100 text-yellow-800"}`}>
-                  {campaign.status}
-                </span>
-              </TableCell>
-              <TableCell>{campaign.emails_sent} / 5</TableCell>
-              <TableCell>{campaign.email_1_date ? new Date(campaign.email_1_date).toLocaleDateString() : "-"}</TableCell>
-              <TableCell>
-                <div className="flex gap-2">
-                  {campaign.start_campaign && (
-                    <>
-                      {!campaign.email_1_date && (
-                        <Button size="sm" variant="secondary" onClick={() => handleSendEmail(campaign.id, 1)}>
-                          <Send className="h-4 w-4 mr-1" />
-                          Email 1
-                        </Button>
-                      )}
-                      {campaign.email_1_date && !campaign.email_2_date && (
-                        <Button size="sm" variant="secondary" onClick={() => handleSendEmail(campaign.id, 2)}>
-                          <Send className="h-4 w-4 mr-1" />
-                          Email 2
-                        </Button>
-                      )}
-                      {campaign.email_2_date && !campaign.email_3_date && (
-                        <Button size="sm" variant="secondary" onClick={() => handleSendEmail(campaign.id, 3)}>
-                          <Send className="h-4 w-4 mr-1" />
-                          Email 3
-                        </Button>
-                      )}
-                      {campaign.email_3_date && !campaign.email_4_date && (
-                        <Button size="sm" variant="secondary" onClick={() => handleSendEmail(campaign.id, 4)}>
-                          <Send className="h-4 w-4 mr-1" />
-                          Email 4
-                        </Button>
-                      )}
-                      {campaign.email_4_date && !campaign.email_5_date && (
-                        <Button size="sm" variant="secondary" onClick={() => handleSendEmail(campaign.id, 5)}>
-                          <Send className="h-4 w-4 mr-1" />
-                          Email 5
-                        </Button>
-                      )}
-                    </>
+                <div className="flex justify-center gap-3">
+                  {campaign.start_campaign && getNextEmailNumber(campaign) && (
+                    <Button size="sm" variant="outline" onClick={() => sendEmail(campaign, getNextEmailNumber(campaign)!)}>
+                      <Send className="h-3 w-3" />
+                    </Button>
                   )}
+                  <Button size="sm" variant="secondary" onClick={() => sendTodayEmails(campaign)}>
+                    <Send className="h-3 w-3" />
+                  </Button>
                   <Button size="sm" variant="destructive" onClick={() => handleDelete(campaign.id)}>
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
               </TableCell>
