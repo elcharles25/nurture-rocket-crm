@@ -157,6 +157,7 @@ export type Database = {
           phone: string | null
           title: string
           updated_at: string | null
+          webinar_role: string | null
           webinars_subscribed: boolean | null
         }
         Insert: {
@@ -175,6 +176,7 @@ export type Database = {
           phone?: string | null
           title: string
           updated_at?: string | null
+          webinar_role?: string | null
           webinars_subscribed?: boolean | null
         }
         Update: {
@@ -193,6 +195,7 @@ export type Database = {
           phone?: string | null
           title?: string
           updated_at?: string | null
+          webinar_role?: string | null
           webinars_subscribed?: boolean | null
         }
         Relationships: []
