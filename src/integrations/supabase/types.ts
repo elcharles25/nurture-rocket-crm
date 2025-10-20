@@ -18,14 +18,19 @@ export type Database = {
         Row: {
           attachments: Json | null
           created_at: string | null
+          email_1_attachments: Json | null
           email_1_html: string
           email_1_subject: string
+          email_2_attachments: Json | null
           email_2_html: string
           email_2_subject: string
+          email_3_attachments: Json | null
           email_3_html: string
           email_3_subject: string
+          email_4_attachments: Json | null
           email_4_html: string
           email_4_subject: string
+          email_5_attachments: Json | null
           email_5_html: string
           email_5_subject: string
           gartner_role: string
@@ -36,14 +41,19 @@ export type Database = {
         Insert: {
           attachments?: Json | null
           created_at?: string | null
+          email_1_attachments?: Json | null
           email_1_html: string
           email_1_subject: string
+          email_2_attachments?: Json | null
           email_2_html: string
           email_2_subject: string
+          email_3_attachments?: Json | null
           email_3_html: string
           email_3_subject: string
+          email_4_attachments?: Json | null
           email_4_html: string
           email_4_subject: string
+          email_5_attachments?: Json | null
           email_5_html: string
           email_5_subject: string
           gartner_role: string
@@ -54,14 +64,19 @@ export type Database = {
         Update: {
           attachments?: Json | null
           created_at?: string | null
+          email_1_attachments?: Json | null
           email_1_html?: string
           email_1_subject?: string
+          email_2_attachments?: Json | null
           email_2_html?: string
           email_2_subject?: string
+          email_3_attachments?: Json | null
           email_3_html?: string
           email_3_subject?: string
+          email_4_attachments?: Json | null
           email_4_html?: string
           email_4_subject?: string
+          email_5_attachments?: Json | null
           email_5_html?: string
           email_5_subject?: string
           gartner_role?: string
