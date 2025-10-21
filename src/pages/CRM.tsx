@@ -26,6 +26,9 @@ interface Contact {
   interested: boolean;
   webinars_subscribed: boolean;
   notes: string | null;
+  pa_name: string | null;
+  pa_email: string | null;
+  pa_phone: string | null;
 }
 
 const GARTNER_ROLES = ["CIO", "CISO", "CDAO", "CTO", "I&O", "CInO", "D. Transformación"];
@@ -51,6 +54,9 @@ const CRM = () => {
     interested: false,
     webinars_subscribed: false,
     notes: "",
+    pa_name: "",
+    pa_email: "",
+    pa_phone: "",
   });
 
   useEffect(() => {
@@ -137,6 +143,9 @@ const CRM = () => {
       interested: false,
       webinars_subscribed: false,
       notes: "",
+      pa_name: "",
+      pa_email: "",
+      pa_phone: "",
     });
     setEditingContact(null);
   };
@@ -157,6 +166,9 @@ const CRM = () => {
       interested: contact.interested,
       webinars_subscribed: contact.webinars_subscribed,
       notes: contact.notes || "",
+      pa_name: contact.pa_name || "",
+      pa_email: contact.pa_email || "",
+      pa_phone: contact.pa_phone || "",
     });
     setIsDialogOpen(true);
   };
@@ -222,6 +234,31 @@ const CRM = () => {
                       id="phone"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="pa_name">Nombre PA</Label>
+                    <Input
+                      id="pa_name"
+                      value={formData.pa_name}
+                      onChange={(e) => setFormData({ ...formData, pa_name: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="pa_email">Email PA</Label>
+                    <Input
+                      id="pa_email"
+                      type="email"
+                      value={formData.pa_email}
+                      onChange={(e) => setFormData({ ...formData, pa_email: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="pa_phone">Teléfono PA</Label>
+                    <Input
+                      id="pa_phone"
+                      value={formData.pa_phone}
+                      onChange={(e) => setFormData({ ...formData, pa_phone: e.target.value })}
                     />
                   </div>
                   <div>

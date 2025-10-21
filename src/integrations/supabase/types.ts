@@ -169,6 +169,9 @@ export type Database = {
           last_name: string
           notes: string | null
           organization: string
+          pa_email: string | null
+          pa_name: string | null
+          pa_phone: string | null
           phone: string | null
           title: string
           updated_at: string | null
@@ -188,6 +191,9 @@ export type Database = {
           last_name: string
           notes?: string | null
           organization: string
+          pa_email?: string | null
+          pa_name?: string | null
+          pa_phone?: string | null
           phone?: string | null
           title: string
           updated_at?: string | null
@@ -207,6 +213,9 @@ export type Database = {
           last_name?: string
           notes?: string | null
           organization?: string
+          pa_email?: string | null
+          pa_name?: string | null
+          pa_phone?: string | null
           phone?: string | null
           title?: string
           updated_at?: string | null
