@@ -96,7 +96,9 @@ export type Database = {
           email_4_date: string | null
           email_5_date: string | null
           emails_sent: number | null
+          has_replied: boolean | null
           id: string
+          last_reply_date: string | null
           response_date: string | null
           response_text: string | null
           start_campaign: boolean | null
@@ -113,7 +115,9 @@ export type Database = {
           email_4_date?: string | null
           email_5_date?: string | null
           emails_sent?: number | null
+          has_replied?: boolean | null
           id?: string
+          last_reply_date?: string | null
           response_date?: string | null
           response_text?: string | null
           start_campaign?: boolean | null
@@ -130,7 +134,9 @@ export type Database = {
           email_4_date?: string | null
           email_5_date?: string | null
           emails_sent?: number | null
+          has_replied?: boolean | null
           id?: string
+          last_reply_date?: string | null
           response_date?: string | null
           response_text?: string | null
           start_campaign?: boolean | null
