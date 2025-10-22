@@ -173,6 +173,7 @@ export type Database = {
           interested: boolean | null
           last_contact_date: string | null
           last_name: string
+          linkedin_url: string | null
           notes: string | null
           organization: string
           pa_email: string | null
@@ -195,6 +196,7 @@ export type Database = {
           interested?: boolean | null
           last_contact_date?: string | null
           last_name: string
+          linkedin_url?: string | null
           notes?: string | null
           organization: string
           pa_email?: string | null
@@ -217,6 +219,7 @@ export type Database = {
           interested?: boolean | null
           last_contact_date?: string | null
           last_name?: string
+          linkedin_url?: string | null
           notes?: string | null
           organization?: string
           pa_email?: string | null
