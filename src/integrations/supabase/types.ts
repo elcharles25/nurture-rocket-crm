@@ -180,6 +180,7 @@ export type Database = {
           pa_name: string | null
           pa_phone: string | null
           phone: string | null
+          tier: string | null
           title: string
           updated_at: string | null
           webinar_role: string | null
@@ -203,6 +204,7 @@ export type Database = {
           pa_name?: string | null
           pa_phone?: string | null
           phone?: string | null
+          tier?: string | null
           title: string
           updated_at?: string | null
           webinar_role?: string | null
@@ -226,6 +228,7 @@ export type Database = {
           pa_name?: string | null
           pa_phone?: string | null
           phone?: string | null
+          tier?: string | null
           title?: string
           updated_at?: string | null
           webinar_role?: string | null
