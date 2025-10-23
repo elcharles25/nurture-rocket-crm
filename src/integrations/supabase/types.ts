@@ -95,6 +95,7 @@ export type Database = {
           email_3_date: string | null
           email_4_date: string | null
           email_5_date: string | null
+          email_incorrect: boolean | null
           emails_sent: number | null
           has_replied: boolean | null
           id: string
@@ -114,6 +115,7 @@ export type Database = {
           email_3_date?: string | null
           email_4_date?: string | null
           email_5_date?: string | null
+          email_incorrect?: boolean | null
           emails_sent?: number | null
           has_replied?: boolean | null
           id?: string
@@ -133,6 +135,7 @@ export type Database = {
           email_3_date?: string | null
           email_4_date?: string | null
           email_5_date?: string | null
+          email_incorrect?: boolean | null
           emails_sent?: number | null
           has_replied?: boolean | null
           id?: string
