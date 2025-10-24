@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exportar Base de Datos</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+        .success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        pre {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗄️ Exportar Base de Datos</h1>
+        <p>Esta herramienta descargará el esquema y los datos de todas tus tablas.</p>
+        
+        <div>
+            <button onclick="exportSchema()">📋 Exportar Solo Esquema</button>
+            <button onclick="exportData()">💾 Exportar Datos (JSON)</button>
+            <button onclick="exportAll()">📦 Exportar Todo</button>
+        </div>
+
+        <div id="status"></div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://gwfagduxqkuafspawjra.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd3ZmFnZHV4cWt1YWZzcGF3anJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0NzI3MjMsImV4cCI6MjA3NjA0ODcyM30.B9HYMvFYz4lmeAjF5lGPNA1sNYnRntYIeTU5ZiyqQG8';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        const tables = [
+            'campaign_templates',
+            'campaigns',
+            'contacts',
+            'settings',
+            'webinar_distributions',
+            'webinar_recommendations'
+        ];
+
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = type;
+            status.style.display = 'block';
+        }
+
+        function download(filename, content) {
+            const blob = new Blob([content], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        async function exportSchema() {
+            showStatus('Exportando esquema...', 'info');
+            
+            const schema = {
+                tables: {
+                    campaign_templates: {
+                        columns: ['id', 'name', 'gartner_role', 'email_1_subject', 'email_1_html', 'email_1_attachments', 'email_2_subject', 'email_2_html', 'email_2_attachments', 'email_3_subject', 'email_3_html', 'email_3_attachments', 'email_4_subject', 'email_4_html', 'email_4_attachments', 'email_5_subject', 'email_5_html', 'email_5_attachments', 'attachments', 'created_at', 'updated_at']
+                    },
+                    campaigns: {
+                        columns: ['id', 'contact_id', 'template_id', 'status', 'start_campaign', 'email_1_date', 'email_2_date', 'email_3_date', 'email_4_date', 'email_5_date', 'emails_sent', 'has_replied', 'last_reply_date', 'response_date', 'response_text', 'email_incorrect', 'created_at', 'updated_at']
+                    },
+                    contacts: {
+                        columns: ['id', 'first_name', 'last_name', 'email', 'phone', 'organization', 'title', 'gartner_role', 'contact_type', 'tier', 'linkedin_url', 'pa_name', 'pa_email', 'pa_phone', 'webinar_role', 'contacted', 'last_contact_date', 'interested', 'webinars_subscribed', 'notes', 'created_at', 'updated_at']
+                    },
+                    settings: {
+                        columns: ['id', 'key', 'value', 'created_at', 'updated_at']
+                    },
+                    webinar_distributions: {
+                        columns: ['id', 'file_name', 'file_url', 'month', 'email_subject', 'email_html', 'webinar_table', 'sent', 'sent_at', 'created_at']
+                    },
+                    webinar_recommendations: {
+                        columns: ['id', 'distribution_id', 'gartner_role', 'webinar_title', 'webinar_description', 'relevance_score', 'created_at']
+                    }
+                },
+                exported_at: new Date().toISOString()
+            };
+
+            download('database-schema.json', JSON.stringify(schema, null, 2));
+            showStatus('✅ Esquema exportado correctamente', 'success');
+        }
+
+        async function exportData() {
+            showStatus('Exportando datos...', 'info');
+            
+            const allData = {};
+            
+            for (const table of tables) {
+                try {
+                    const { data, error } = await supabase.from(table).select('*');
+                    if (error) throw error;
+                    allData[table] = data;
+                    showStatus(`Exportando ${table}... (${data.length} registros)`, 'info');
+                } catch (error) {
+                    console.error(`Error en tabla ${table}:`, error);
+                    allData[table] = { error: error.message };
+                }
+            }
+            
+            allData.exported_at = new Date().toISOString();
+            
+            download('database-data.json', JSON.stringify(allData, null, 2));
+            showStatus('✅ Datos exportados correctamente', 'success');
+        }
+
+        async function exportAll() {
+            showStatus('Exportando esquema y datos...', 'info');
+            
+            await exportSchema();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await exportData();
+            
+            showStatus('✅ Exportación completa finalizada', 'success');
+        }
+    </script>
+</body>
+</html>
